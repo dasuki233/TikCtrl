@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:id="@+id/container"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="手势映射配置"
+            android:textSize="20sp"
+            android:paddingBottom="12dp" />
+
+        <!-- Single-hand mode selector (moved from programmatic into layout for visibility) -->
+        <TextView
+            android:id="@+id/tv_single_hand_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="单手模式"
+            android:textSize="16sp"
+            android:paddingTop="8dp"
+            android:paddingBottom="4dp" />
+
+        <RadioGroup
+            android:id="@+id/rg_single_hand"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/rb_both"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Both" />
+
+            <RadioButton
+                android:id="@+id/rb_left"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Left" />
+
+            <RadioButton
+                android:id="@+id/rb_right"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Right" />
+
+        </RadioGroup>
+        <Button
+            android:id="@+id/btn_reset_defaults"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="重置为默认" />
+
+    </LinearLayout>
+</ScrollView>
