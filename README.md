@@ -1,40 +1,39 @@
-# MediaPipe Tasks Hand Landmark Detection Android Demo
+# TikCtrl
 
 ### Overview
 
-This is a camera app that can  detects hand landmarks either from continuous camera frames seen by your device's front camera, an image, or a video from the device's gallery using a custom **task** file.
+TikCtrl 是一款基于 MediaPipe 的手势控制应用，通过摄像头实时检测手部关键点，实现手势识别和控制功能。该应用支持从设备前置摄像头的连续帧、图片或视频中检测手部地标。
 
-The task file is downloaded by a Gradle script when you build and run the app. You don't need to do any additional steps to download task files into the project explicitly unless you wish to use your own landmark detection task. If you do use your own task file, place it into the app's *assets* directory.
+应用使用自定义的 **task** 文件进行手势识别。在构建和运行应用时，task 文件会通过 Gradle 脚本自动下载，无需手动操作。如果需要使用自定义的地标检测任务文件，请将其放置到 app 的 *assets* 目录中。
 
-This application should be run on a physical Android device to take advantage of the camera.
-
-![Hand Landmark Detection Demo](landmarker.gif?raw=true "Hand Landmark Detection Demo")
+建议在物理 Android 设备上运行此应用以充分利用摄像头功能。
 
 ## Build the demo using Android Studio
 
 ### Prerequisites
 
-*   The **[Android Studio](https://developer.android.com/studio/index.html)** IDE. This sample has been tested on Android Studio Dolphin.
+*   **[Android Studio](https://developer.android.com/studio/index.html)** IDE。本项目已在 Android Studio Dolphin 及更高版本上测试通过。
 
-*   A physical Android device with a minimum OS version of SDK 24 (Android 7.0 -
-    Nougat) with developer mode enabled. The process of enabling developer mode
-    may vary by device.
+*   物理 Android 设备，最低 OS 版本为 SDK 24（Android 7.0 - Nougat），并已启用开发者模式。不同设备启用开发者模式的步骤可能有所不同。
 
 ### Building
 
-*   Open Android Studio. From the Welcome screen, select Open an existing
-    Android Studio project.
+*   打开 Android Studio。从欢迎界面选择 "Open an existing Android Studio project"。
 
-*   From the Open File or Project window that appears, navigate to and select
-    the mediapipe/examples/hand_landmarker/android directory. Click OK. You may
-    be asked if you trust the project. Select Trust.
+*   在弹出的 "Open File or Project" 窗口中，导航到并选择 TikCtrl 项目目录。点击 OK。可能会提示是否信任该项目，请选择 Trust。
 
-*   If it asks you to do a Gradle Sync, click OK.
+*   如果提示进行 Gradle Sync，请点击 OK。
 
-*   With your Android device connected to your computer and developer mode
-    enabled, click on the green Run arrow in Android Studio.
+*   将 Android 设备连接到电脑并启用开发者模式后，点击 Android Studio 中的绿色 Run 箭头。
 
 ### Models used
 
-Downloading, extraction, and placing the models into the *assets* folder is
-managed automatically by the **download.gradle** file.
+模型的下载、解压和放置到 *assets* 文件夹的过程由 **download_tasks.gradle** 文件自动管理。
+
+### Features
+
+- 实时手部关键点检测
+- 手势识别与分类
+- 手势动作映射配置
+- 悬浮窗手势控制
+- Material3 深色主题界面
