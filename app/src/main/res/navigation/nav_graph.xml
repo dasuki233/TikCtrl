@@ -21,7 +21,7 @@
 
     <fragment
         android:id="@+id/permissions_fragment"
-        android:name="com.google.mediapipe.examples.handlandmarker.fragment.PermissionsFragment"
+        android:name="com.tikctrl.app.fragment.PermissionsFragment"
         android:label="PermissionsFragment">
 
         <action
@@ -34,7 +34,7 @@
 
     <fragment
         android:id="@+id/camera_fragment"
-        android:name="com.google.mediapipe.examples.handlandmarker.fragment.CameraFragment"
+        android:name="com.tikctrl.app.fragment.CameraFragment"
         android:label="CameraFragment">
 
         <action
@@ -46,11 +46,11 @@
 
     <fragment
         android:id="@+id/home_fragment"
-        android:name="com.google.mediapipe.examples.handlandmarker.fragment.HomeFragment"
+        android:name="com.tikctrl.app.fragment.HomeFragment"
         android:label="HomeFragment" />
 
     <fragment
         android:id="@+id/gallery_fragment"
-        android:name="com.google.mediapipe.examples.handlandmarker.fragment.GalleryFragment"
+        android:name="com.tikctrl.app.fragment.GalleryFragment"
         android:label="GalleryFragment" />
 </navigation>

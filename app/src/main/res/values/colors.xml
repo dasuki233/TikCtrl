@@ -1,31 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    ~ Copyright 2022 The TensorFlow Authors. All Rights Reserved.
-    ~
-    ~ Licensed under the Apache License, Version 2.0 (the "License");
-    ~ you may not use this file except in compliance with the License.
-    ~ You may obtain a copy of the License at
-    ~
-    ~       http://www.apache.org/licenses/LICENSE-2.0
-    ~
-    ~ Unless required by applicable law or agreed to in writing, software
-    ~ distributed under the License is distributed on an "AS IS" BASIS,
-    ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    ~ See the License for the specific language governing permissions and
-    ~ limitations under the License.
--->
 <resources>
-    <color name="mp_color_primary">#007F8B</color>
-    <color name="mp_color_primary_variant">#12B5CB</color>
-    <color name="mp_color_primary_dark">#00676D</color>
-    <color name="mp_color_secondary">#FBBC04</color>
-    <color name="mp_color_secondary_variant">#F9AB00</color>
-    <color name="mp_color_error">#B00020</color>
-    <color name="toolbar_background">#E0E0E0</color>
-    <color name="ic_launcher_background">#FFFFFF</color>
-    <color name="bottom_sheet_background">#EEEEEE</color>
-    <color name="bottom_sheet_text_color">@android:color/black</color>
-    <color name="icActive">#FFFFFFFF</color>
-    <color name="icFocused">#DDFFFFFF</color>
-    <color name="icPressed">#AAFFFFFF</color>
+    <color name="color_primary">#6366F1</color>
+    <color name="color_primary_dark">#4F46E5</color>
+    <color name="color_primary_light">#818CF8</color>
+    <color name="color_secondary">#EC4899</color>
+    <color name="color_secondary_dark">#DB2777</color>
+    <color name="color_secondary_light">#F472B6</color>
+    <color name="color_accent">#10B981</color>
+    <color name="color_background">#0F172A</color>
+    <color name="color_background_surface">#1E293B</color>
+    <color name="color_background_card">#334155</color>
+    <color name="color_text_primary">#F8FAFC</color>
+    <color name="color_text_secondary">#94A3B8</color>
+    <color name="color_text_hint">#64748B</color>
+    <color name="color_border">#475569</color>
+    <color name="color_error">#EF4444</color>
+    <color name="color_success">#22C55E</color>
+    <color name="color_warning">#F59E0B</color>
+    <color name="color_on_primary">#FFFFFF</color>
+    <color name="color_on_secondary">#FFFFFF</color>
+    <color name="color_on_background">#F8FAFC</color>
+    <color name="color_on_surface">#F8FAFC</color>
+    <color name="color_nav_active">#6366F1</color>
+    <color name="color_nav_inactive">#94A3B8</color>
+    <color name="color_fab_bg">#6366F1</color>
+    <color name="color_button_bg">#6366F1</color>
+    <color name="color_button_text">#FFFFFF</color>
+    <color name="color_switch_track">#475569</color>
+    <color name="color_switch_thumb">#6366F1</color>
 </resources>

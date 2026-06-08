@@ -20,12 +20,12 @@ plugins {
 }
 
 android {
-    namespace 'com.google.mediapipe.examples.handlandmarker'
+    namespace 'com.tikctrl.app'
     compileSdk 36
     buildToolsVersion "36.0.0"
 
     defaultConfig {
-        applicationId "com.google.mediapipe.examples.handlandmarker"
+        applicationId "com.tikctrl.app"
         minSdk 24
         targetSdk 36
         versionCode 1
@@ -62,8 +62,8 @@ dependencies {
     implementation 'androidx.core:core-ktx:1.8.0'
 
     // App compat and UI things
-    implementation 'androidx.appcompat:appcompat:1.5.1'
-    implementation 'com.google.android.material:material:1.7.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.fragment:fragment-ktx:1.5.4'
     implementation 'androidx.lifecycle:lifecycle-service:2.9.4'

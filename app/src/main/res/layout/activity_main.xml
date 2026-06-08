@@ -1,99 +1,107 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-    ~ Copyright 2022 The TensorFlow Authors. All Rights Reserved.
-    ~
-    ~ Licensed under the Apache License, Version 2.0 (the "License");
-    ~ you may not use this file except in compliance with the License.
-    ~ You may obtain a copy of the License at
-    ~
-    ~       http://www.apache.org/licenses/LICENSE-2.0
-    ~
-    ~ Unless required by applicable law or agreed to in writing, software
-    ~ distributed under the License is distributed on an "AS IS" BASIS,
-    ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-    ~ See the License for the specific language governing permissions and
-    ~ limitations under the License.
--->
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/transparent">
+    android:background="@color/color_background">
 
-    <RelativeLayout
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/color_background_surface"
+            app:title="TikCtrl"
+            app:titleTextColor="@color/color_text_primary" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.fragment.app.FragmentContainerView
+        android:id="@+id/fragment_container"
+        android:name="androidx.navigation.fragment.NavHostFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical">
+        android:layout_marginTop="?attr/actionBarSize"
+        android:background="@color/color_background"
+        android:keepScreenOn="true"
+        app:defaultNavHost="true"
+        app:navGraph="@navigation/nav_graph"
+        tools:context=".MainActivity" />
 
-        <androidx.fragment.app.FragmentContainerView
-            android:id="@+id/fragment_container"
-            android:name="androidx.navigation.fragment.NavHostFragment"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_marginTop="?android:attr/actionBarSize"
-            android:background="@android:color/transparent"
-            android:keepScreenOn="true"
-            app:defaultNavHost="true"
-            app:navGraph="@navigation/nav_graph"
-            tools:context=".MainActivity" />
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/navigation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="@color/color_background_surface"
+        app:itemIconTint="@color/bg_nav_item"
+        app:itemTextColor="@color/bg_nav_item"
+        app:menu="@menu/menu_bottom_nav" />
 
-        <com.google.android.material.bottomnavigation.BottomNavigationView
-            android:id="@+id/navigation"
-            android:layout_width="match_parent"
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_gesture_mapping"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end|bottom"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="88dp"
+        android:contentDescription="@string/action_custom"
+        app:backgroundTint="@color/color_fab_bg"
+        app:rippleColor="@color/color_primary_light"
+        app:srcCompat="@drawable/ic_baseline_settings_24"
+        app:tint="@color/color_on_primary" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginBottom="80dp"
+        android:paddingHorizontal="16dp"
+        android:orientation="horizontal"
+        android:weightSum="10"
+        android:background="@color/color_background_surface"
+        android:paddingVertical="12dp">
+
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/toolbar"
-            app:itemIconTint="@color/bg_nav_item"
-            app:itemTextColor="@color/bg_nav_item"
-            app:menu="@menu/menu_bottom_nav" />
+            android:layout_weight="7"
+            android:orientation="vertical"
+            android:gravity="center_vertical">
 
-        <View
-            android:id="@+id/view"
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_below="@id/navigation"
-            android:background="@android:color/darker_gray" />
+            <androidx.appcompat.widget.SwitchCompat
+                android:id="@+id/switch_visual_feedback"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="视觉反馈"
+                android:textColor="@color/color_text_primary"
+                app:trackTint="@color/color_switch_track"
+                app:thumbTint="@color/color_switch_thumb" />
 
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fab_gesture_mapping"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentBottom="true"
-            android:layout_margin="16dp"
-            android:contentDescription="手势映射"
-            app:srcCompat="@android:drawable/ic_menu_manage" />
+            <android.widget.Button
+                android:id="@+id/btn_check_permissions"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="检测权限"
+                android:backgroundTint="@color/color_background_card"
+                android:textColor="@color/color_text_primary"
+                android:layout_marginTop="8dp" />
 
-        <Button
-            android:id="@+id/btn_check_permissions"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="检测权限"
-            android:layout_alignParentStart="true"
-            android:layout_alignParentBottom="true"
-            android:layout_margin="16dp" />
+        </LinearLayout>
 
-        <!-- Visual feedback toggle -->
-        <androidx.appcompat.widget.SwitchCompat
-            android:id="@+id/switch_visual_feedback"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="视觉反馈"
-            android:layout_alignParentStart="true"
-            android:layout_above="@id/btn_check_permissions"
-            android:layout_marginStart="16dp"
-            android:layout_marginBottom="8dp" />
-
-        <!-- Color cycle button for feedback color -->
-        <Button
+        <android.widget.Button
             android:id="@+id/btn_feedback_color"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="颜色"
-            android:layout_alignParentEnd="true"
-            android:layout_above="@id/fab_gesture_mapping"
-            android:layout_marginEnd="16dp"
-            android:layout_marginBottom="16dp" />
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="3"
+            android:text="🎨"
+            android:backgroundTint="@color/color_button_bg"
+            android:textColor="@color/color_button_text" />
 
-    </RelativeLayout>
+    </LinearLayout>
+
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
