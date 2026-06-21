@@ -70,6 +70,8 @@ class GestureActionService : AccessibilityService() {
         } else {
             registerReceiver(gestureReceiver, filter)
         }
+        // 初始化手势统计
+        GestureStatistics.init(this)
     }
 
     override fun onInterrupt() {}
@@ -1115,12 +1117,14 @@ class GestureActionService : AccessibilityService() {
             GestureMappingManager.Action.NEXT -> {
                 Log.i("GestureActionService", "Action NEXT: swipe up")
                 swipeUp()
+                GestureStatistics.incrementCount()
 //                debugCurrentContentDescriptions()
             }
             // 二、下滑(上一个视频)
             GestureMappingManager.Action.PREV -> {
                 Log.i("GestureActionService", "Action PREV: swipe down")
                 swipeDown()
+                GestureStatistics.incrementCount()
 //                findAndClickByContentDescPartial("已关注")
             }
             // 三、点赞

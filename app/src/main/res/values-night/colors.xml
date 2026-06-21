@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="color_primary">#12BCA5</color>
     <color name="color_primary_dark">#079A88</color>
@@ -7,28 +7,28 @@
     <color name="color_secondary_dark">#1C64C8</color>
     <color name="color_secondary_light">#78AEF7</color>
     <color name="color_accent">#12BCA5</color>
-    <color name="color_background">#F6F8FB</color>
-    <color name="color_background_surface">#FFFFFF</color>
-    <color name="color_background_card">#FFFFFF</color>
-    <color name="color_text_primary">#172033</color>
-    <color name="color_text_secondary">#647082</color>
-    <color name="color_text_hint">#98A2B3</color>
-    <color name="color_border">#E7ECF2</color>
+    <color name="color_background">#0A0A0A</color>
+    <color name="color_background_surface">#1A1A1A</color>
+    <color name="color_background_card">#1E1E1E</color>
+    <color name="color_text_primary">#FFFFFF</color>
+    <color name="color_text_secondary">#A0A0A0</color>
+    <color name="color_text_hint">#606060</color>
+    <color name="color_border">#2A2A2A</color>
     <color name="color_error">#FF4F42</color>
     <color name="color_success">#12BCA5</color>
     <color name="color_warning">#FFB020</color>
     <color name="color_on_primary">#FFFFFF</color>
     <color name="color_on_secondary">#FFFFFF</color>
-    <color name="color_on_background">#172033</color>
-    <color name="color_on_surface">#172033</color>
+    <color name="color_on_background">#FFFFFF</color>
+    <color name="color_on_surface">#FFFFFF</color>
     <color name="color_nav_active">#12BCA5</color>
-    <color name="color_nav_inactive">#98A2B3</color>
+    <color name="color_nav_inactive">#606060</color>
     <color name="color_fab_bg">#12BCA5</color>
     <color name="color_button_bg">#12BCA5</color>
     <color name="color_button_text">#FFFFFF</color>
-    <color name="color_switch_track">#DDE4EC</color>
+    <color name="color_switch_track">#3A3A3A</color>
     <color name="color_switch_thumb">#12BCA5</color>
-    <color name="color_card_shadow_hint">#1A000000</color>
+    <color name="color_card_shadow_hint">#1AFFFFFF</color>
     <color name="color_blue">#1887F2</color>
     <color name="color_purple">#7C3AED</color>
     <color name="color_orange">#FF9518</color>

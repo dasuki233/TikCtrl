@@ -19,7 +19,6 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.appcompat.app.AlertDialog
 import android.content.ComponentName
-import android.text.TextUtils
 import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -32,8 +31,6 @@ import android.app.Activity
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.core.app.ActivityCompat
-import android.content.SharedPreferences
-import androidx.appcompat.widget.SwitchCompat
 import android.graphics.Color
 
 class MainActivity : AppCompatActivity() {
@@ -42,7 +39,12 @@ class MainActivity : AppCompatActivity() {
     private var startedGestureService = false
     private val REQ_CAMERA_PERM = 1001
 
+    private val THEME_MODE_SYSTEM = 0
+    private val THEME_MODE_LIGHT = 1
+    private val THEME_MODE_DARK = 2
+
     override fun onCreate(savedInstanceState: Bundle?) {
+        applyThemeMode()
         super.onCreate(savedInstanceState)
 
         // Only start the HandGestureService if we have overlay permission and camera permission.
@@ -91,64 +93,6 @@ class MainActivity : AppCompatActivity() {
             // ignore the reselection
         }
 
-        // FAB: 打开手势映射界面
-        try {
-            val fab = activityMainBinding.root.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_gesture_mapping)
-            fab?.setOnClickListener {
-                startActivity(Intent(this, GestureMappingActivity::class.java))
-            }
-        } catch (e: Exception) {
-            // 如果没有找到 FAB（向后兼容），忽略
-        }
-
-        // 权限检测按钮，用户可点击以检查/请求相机权限
-        try {
-            val checkBtn = activityMainBinding.root.findViewById<android.widget.Button>(R.id.btn_check_permissions)
-            checkBtn?.setOnClickListener {
-                checkAndRequestCameraAndOverlayPermission()
-            }
-        } catch (e: Exception) {
-            // ignore if not present
-        }
-
-        // Visual feedback switch and color button
-        try {
-            val prefs: SharedPreferences = getSharedPreferences("gesture_prefs", MODE_PRIVATE)
-            val switch = activityMainBinding.root.findViewById<SwitchCompat>(R.id.switch_visual_feedback)
-            val colorBtn = activityMainBinding.root.findViewById<android.widget.Button>(R.id.btn_feedback_color)
-
-            val colors = listOf(Color.parseColor("#00FF00"), Color.parseColor("#FF0000"), Color.parseColor("#FFFF00"), Color.parseColor("#00FFFF"), Color.parseColor("#FFFFFF"))
-            var colorIndex = prefs.getInt("feedback_color_index", 0).coerceIn(0, colors.size - 1)
-
-            val enabled = prefs.getBoolean("visual_feedback_enabled", true)
-            switch?.isChecked = enabled
-            colorBtn?.isEnabled = enabled
-
-            fun updateColorButton() {
-                try {
-                    val c = colors[colorIndex]
-                    colorBtn?.setBackgroundColor(c)
-                    colorBtn?.setTextColor(if (isColorDark(c)) Color.WHITE else Color.BLACK)
-                    colorBtn?.text = String.format("#%06X", 0xFFFFFF and c)
-                } catch (_: Exception) {}
-            }
-
-            updateColorButton()
-
-            switch?.setOnCheckedChangeListener { _, isChecked ->
-                prefs.edit().putBoolean("visual_feedback_enabled", isChecked).apply()
-                colorBtn?.isEnabled = isChecked
-            }
-
-            colorBtn?.setOnClickListener {
-                colorIndex = (colorIndex + 1) % colors.size
-                prefs.edit().putInt("feedback_color_index", colorIndex).apply()
-                updateColorButton()
-            }
-
-        } catch (e: Exception) {
-            // ignore if views not present
-        }
     }
 
     private fun isColorDark(color: Int): Boolean {
@@ -184,7 +128,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun checkAndRequestCameraAndOverlayPermission() {
+    fun checkAndRequestCameraAndOverlayPermission() {
         // First ensure overlay permission (悬浮窗) is granted on Android M+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             AlertDialog.Builder(this)
@@ -276,5 +220,25 @@ class MainActivity : AppCompatActivity() {
 
     override fun onBackPressed() {
         finish()
+    }
+
+    private fun applyThemeMode() {
+        val prefs = getSharedPreferences("gesture_prefs", MODE_PRIVATE)
+        val mode = prefs.getInt("theme_mode", THEME_MODE_SYSTEM)
+
+        val nightMode = when (mode) {
+            THEME_MODE_LIGHT -> androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_NO
+            THEME_MODE_DARK -> androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES
+            else -> androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+        }
+        androidx.appcompat.app.AppCompatDelegate.setDefaultNightMode(nightMode)
+    }
+
+    fun applyThemeColor(colorString: String) {
+        val color = Color.parseColor(colorString)
+        window.statusBarColor = color
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            window.navigationBarColor = color
+        }
     }
 }

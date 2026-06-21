@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingVertical="6dp">
+
+    <!-- 日期 -->
+    <TextView
+        android:id="@+id/tv_date"
+        android:layout_width="50dp"
+        android:layout_height="wrap_content"
+        android:text="06-20"
+        android:textColor="@color/color_text_primary"
+        android:textSize="13sp" />
+
+    <!-- 进度条容器 -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginHorizontal="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <!-- 进度条 -->
+        <View
+            android:id="@+id/view_progress"
+            android:layout_width="0dp"
+            android:layout_height="6dp"
+            android:layout_weight="1"
+            android:background="@color/color_primary" />
+
+        <!-- 空白区域 -->
+        <View
+            android:id="@+id/view_empty"
+            android:layout_width="0dp"
+            android:layout_height="6dp"
+            android:layout_weight="0"
+            android:background="@android:color/transparent" />
+    </LinearLayout>
+
+    <!-- 次数 -->
+    <TextView
+        android:id="@+id/tv_count"
+        android:layout_width="40dp"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:text="0"
+        android:textColor="@color/color_text_secondary"
+        android:textSize="13sp" />
+
+</LinearLayout>

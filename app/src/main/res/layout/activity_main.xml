@@ -4,29 +4,15 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/color_background">
-
-    <com.google.android.material.appbar.AppBarLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            android:background="@color/color_background_surface"
-            app:title="TikCtrl"
-            app:titleTextColor="@color/color_text_primary" />
-
-    </com.google.android.material.appbar.AppBarLayout>
+    android:background="@drawable/bg_app">
 
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/fragment_container"
         android:name="androidx.navigation.fragment.NavHostFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginTop="?attr/actionBarSize"
-        android:background="@color/color_background"
+        android:layout_marginBottom="78dp"
+        android:background="@drawable/bg_app"
         android:keepScreenOn="true"
         app:defaultNavHost="true"
         app:navGraph="@navigation/nav_graph"
@@ -35,73 +21,13 @@
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/navigation"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="78dp"
         android:layout_gravity="bottom"
-        android:background="@color/color_background_surface"
+        android:background="@drawable/bg_bottom_nav"
+        android:elevation="10dp"
         app:itemIconTint="@color/bg_nav_item"
         app:itemTextColor="@color/bg_nav_item"
+        app:labelVisibilityMode="labeled"
         app:menu="@menu/menu_bottom_nav" />
-
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_gesture_mapping"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="end|bottom"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="88dp"
-        android:contentDescription="@string/action_custom"
-        app:backgroundTint="@color/color_fab_bg"
-        app:rippleColor="@color/color_primary_light"
-        app:srcCompat="@drawable/ic_baseline_settings_24"
-        app:tint="@color/color_on_primary" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:layout_marginBottom="80dp"
-        android:paddingHorizontal="16dp"
-        android:orientation="horizontal"
-        android:weightSum="10"
-        android:background="@color/color_background_surface"
-        android:paddingVertical="12dp">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="7"
-            android:orientation="vertical"
-            android:gravity="center_vertical">
-
-            <androidx.appcompat.widget.SwitchCompat
-                android:id="@+id/switch_visual_feedback"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="视觉反馈"
-                android:textColor="@color/color_text_primary"
-                app:trackTint="@color/color_switch_track"
-                app:thumbTint="@color/color_switch_thumb" />
-
-            <android.widget.Button
-                android:id="@+id/btn_check_permissions"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="检测权限"
-                android:backgroundTint="@color/color_background_card"
-                android:textColor="@color/color_text_primary"
-                android:layout_marginTop="8dp" />
-
-        </LinearLayout>
-
-        <android.widget.Button
-            android:id="@+id/btn_feedback_color"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="3"
-            android:text="🎨"
-            android:backgroundTint="@color/color_button_bg"
-            android:textColor="@color/color_button_text" />
-
-    </LinearLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

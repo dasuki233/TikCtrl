@@ -107,6 +107,12 @@ class HandGestureService : LifecycleService() {
     // 设置手部关键点检测器
     private fun setupHandLandmarker() {
         try {
+            // 初始化手势统计
+            GestureStatistics.init(this)
+            // 根据滑动次数计算灵敏度 (范围 40-100，转换为 0.4-1.0)
+            val sensitivity = GestureStatistics.calculateSensitivity()
+            val minConfidence = sensitivity / 100f
+
             val baseOptions = BaseOptions.builder()
                 .setDelegate(Delegate.CPU)  // 使用CPU推理
                 .setModelAssetPath("hand_landmarker.task")  // 模型文件路径
@@ -116,6 +122,7 @@ class HandGestureService : LifecycleService() {
             val options = HandLandmarker.HandLandmarkerOptions.builder()
                 .setBaseOptions(baseOptions)    // 设置基础配置
                 .setNumHands(2) // 检测最多1只手
+                .setMinHandDetectionConfidence(minConfidence) // 动态灵敏度
                 .setRunningMode(RunningMode.LIVE_STREAM)    // 实时流模式
                 .setResultListener { result: HandLandmarkerResult, _: com.google.mediapipe.framework.image.MPImage ->
                     handleHandLandmarkerResult(result)  // 结果回调处理
@@ -124,6 +131,7 @@ class HandGestureService : LifecycleService() {
 
             // 创建手部关键点检测器实例
             handLandmarker = HandLandmarker.createFromOptions(this, options)
+            Log.d(TAG, "HandLandmarker initialized with sensitivity: $sensitivity% (minConfidence: $minConfidence)")
         } catch (e: Exception) {
             Log.e(TAG, "HandLandmarker init failed: ${e.message}")
         }
@@ -421,21 +429,29 @@ class HandGestureService : LifecycleService() {
         val landmarksList = result.landmarks()
         val handednessLists = result.handednesses()
 
-        // Determine which hand index to u se (or null to use default behavior)
+        // Determine which hand index to use (or null to use default behavior)
         var selectedHandIndex: Int? = null
         if (mode != GestureMappingManager.SingleHandMode.BOTH) {
-            // Search for matching handedness name in the first handedness list
-            if (handednessLists.isNotEmpty()) {
-                val handCats = handednessLists.first()
-                for (i in 0 until handCats.size) {
-                    val name = handCats[i].categoryName()
+            // Search for matching handedness in all detected hands
+            for (i in 0 until handednessLists.size) {
+                val handCats = handednessLists[i]
+                for (j in 0 until handCats.size) {
+                    val name = handCats[j].categoryName()
                     if ((mode == GestureMappingManager.SingleHandMode.LEFT && name.equals("Left", true)) ||
                         (mode == GestureMappingManager.SingleHandMode.RIGHT && name.equals("Right", true))) {
                         selectedHandIndex = i
                         break
                     }
                 }
+                if (selectedHandIndex != null) break
             }
+        }
+
+        // If single-hand mode is enabled but no matching hand is detected, skip this frame
+        if (mode != GestureMappingManager.SingleHandMode.BOTH && selectedHandIndex == null) {
+            lastDetectedGesture = null
+            consecutiveDetections = 0
+            return
         }
 
         val gesture = if (selectedHandIndex != null && selectedHandIndex < landmarksList.size) {

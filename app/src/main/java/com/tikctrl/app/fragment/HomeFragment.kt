@@ -4,8 +4,17 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.LinearLayout
+import android.widget.Spinner
+import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.widget.SwitchCompat
 import androidx.fragment.app.Fragment
-import androidx.navigation.fragment.findNavController
+import com.tikctrl.app.GestureClassifier
+import com.tikctrl.app.GestureMappingManager
+import com.tikctrl.app.GestureStatistics
 import com.tikctrl.app.R
 
 class HomeFragment : Fragment() {
@@ -16,8 +25,260 @@ class HomeFragment : Fragment() {
     ): View? {
         val root = inflater.inflate(R.layout.fragment_home, container, false)
 
-        // Buttons removed - app uses floating preview for camera functionality
+        // 初始化手势统计
+        GestureStatistics.init(requireContext())
+
+        val prefs = requireContext().getSharedPreferences("gesture_prefs", android.content.Context.MODE_PRIVATE)
+        root.findViewById<SwitchCompat>(R.id.switch_visual_feedback).apply {
+            isChecked = prefs.getBoolean("visual_feedback_enabled", true)
+            setOnCheckedChangeListener { _, checked ->
+                prefs.edit().putBoolean("visual_feedback_enabled", checked).apply()
+            }
+        }
+
+        // 更新统计数据
+        updateStatistics(root)
+
+        // 点击 Recognitions 显示历史记录
+        root.findViewById<LinearLayout>(R.id.layout_recognitions).setOnClickListener {
+            showHistoryDialog()
+        }
+
+        // 点击 Accuracy 显示灵敏度信息
+        root.findViewById<LinearLayout>(R.id.layout_accuracy).setOnClickListener {
+            showSensitivityDialog()
+        }
+
+        val mappingContainer = root.findViewById<LinearLayout>(R.id.home_mapping_container)
+
+        // 定义所有 12 个手势
+        val gestures = listOf(
+            GestureClassifier.Gesture.MIDDLE_FINGER,
+            GestureClassifier.Gesture.PINKY_FINGER,
+            GestureClassifier.Gesture.INDEX_FINGER,
+            GestureClassifier.Gesture.PEACE_V,
+            GestureClassifier.Gesture.INDEX_MIDDLE_RING,
+            GestureClassifier.Gesture.INDEX_MIDDLE_RING_PINKY,
+            GestureClassifier.Gesture.SPIDER_MAN_SHOOTER,
+            GestureClassifier.Gesture.SPIDER_SHOOTER_NO_THUMB,
+            GestureClassifier.Gesture.OK,
+            GestureClassifier.Gesture.THUMB,
+            GestureClassifier.Gesture.Aki_FOX_DEVIL,
+            GestureClassifier.Gesture.SIXSIXSIX
+        )
+
+        gestures.forEach { gesture ->
+            mappingContainer.addView(createMappingRow(gesture))
+        }
+
+        // Reset All 按钮 - 将所有手势重置为 None
+        root.findViewById<android.widget.Button>(R.id.btn_reset_all).setOnClickListener {
+            gestures.forEach { gesture ->
+                GestureMappingManager.setActionForGesture(requireContext(), gesture, GestureMappingManager.Action.NONE)
+            }
+            // 刷新页面 - 清除容器并重新创建
+            mappingContainer.removeAllViews()
+            gestures.forEach { gesture ->
+                mappingContainer.addView(createMappingRow(gesture))
+            }
+        }
 
         return root
     }
+
+    override fun onResume() {
+        super.onResume()
+        // 每次显示时更新统计数据
+        GestureStatistics.init(requireContext())
+        view?.let { updateStatistics(it) }
+    }
+
+    private fun updateStatistics(root: View) {
+        // 更新 Recognitions（今日滑动次数）
+        val todayCount = GestureStatistics.getTodayCount()
+        root.findViewById<TextView>(R.id.tv_recognitions).text = todayCount.toString()
+
+        // 更新 Accuracy（当前灵敏度）
+        val sensitivity = GestureStatistics.calculateSensitivity()
+        root.findViewById<TextView>(R.id.tv_accuracy).text = "${sensitivity}%"
+    }
+
+    private fun showHistoryDialog() {
+        val history = GestureStatistics.getHistory(7)
+        val todayCount = GestureStatistics.getTodayCount()
+        val totalCount = GestureStatistics.getTotalCount()
+
+        // 使用自定义布局
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_history, null)
+        
+        // 设置今日统计
+        dialogView.findViewById<TextView>(R.id.tv_today_count).text = todayCount.toString()
+        dialogView.findViewById<TextView>(R.id.tv_total_count).text = "Total: $totalCount"
+
+        // 填充历史记录
+        val historyContainer = dialogView.findViewById<LinearLayout>(R.id.history_container)
+        val maxCount = history.maxOfOrNull { it.second }?.coerceAtLeast(1) ?: 1
+
+        history.forEach { (date, count) ->
+            val itemView = LayoutInflater.from(requireContext()).inflate(R.layout.item_history, historyContainer, false)
+            itemView.findViewById<TextView>(R.id.tv_date).text = date
+            itemView.findViewById<TextView>(R.id.tv_count).text = "$count"
+            
+            // 设置进度条宽度（基于最大值）
+            val progressView = itemView.findViewById<View>(R.id.view_progress)
+            val emptyView = itemView.findViewById<View>(R.id.view_empty)
+            val ratio = if (maxCount > 0) count.toFloat() / maxCount else 0f
+            progressView.layoutParams = LinearLayout.LayoutParams(0, 6).apply { weight = ratio }
+            emptyView.layoutParams = LinearLayout.LayoutParams(0, 6).apply { weight = 1f - ratio }
+            
+            // 今日高亮
+            if (date == history.lastOrNull()?.first) {
+                itemView.findViewById<TextView>(R.id.tv_date).setTextColor(
+                    androidx.core.content.ContextCompat.getColor(requireContext(), R.color.color_primary)
+                )
+                itemView.findViewById<TextView>(R.id.tv_count).setTextColor(
+                    androidx.core.content.ContextCompat.getColor(requireContext(), R.color.color_primary)
+                )
+            }
+            
+            historyContainer.addView(itemView)
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .setPositiveButton("OK", null)
+            .create()
+            .show()
+    }
+
+    private fun showSensitivityDialog() {
+        val sensitivity = GestureStatistics.calculateSensitivity()
+        val todayCount = GestureStatistics.getTodayCount()
+
+        // 使用自定义布局
+        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_sensitivity, null)
+        
+        dialogView.findViewById<TextView>(R.id.tv_sensitivity_value).text = "${sensitivity}%"
+        dialogView.findViewById<TextView>(R.id.tv_today_swipes).text = todayCount.toString()
+
+        AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .setPositiveButton("OK", null)
+            .create()
+            .show()
+    }
+
+    private fun createMappingRow(gesture: GestureClassifier.Gesture): View {
+        val context = requireContext()
+        val action = GestureMappingManager.getActionForGesture(context, gesture)
+        val gestureName = GestureMappingManager.getGestureDisplayName(context, gesture)
+
+        // 获取动作列表用于 Spinner
+        val actionList = GestureMappingManager.getAllActionsForDisplay()
+        val actionLabels = actionList.map { GestureMappingManager.getDisplayName(context, it) }
+
+        // 容器（垂直布局）
+        val container = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(0, 0, 0, dp(8)) }
+        }
+
+        val row = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(dp(18), dp(10), dp(10), dp(10))
+            background = androidx.core.content.ContextCompat.getDrawable(context, R.drawable.bg_card_small)
+            elevation = dp(2).toFloat()
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        // 手势名称
+        row.addView(TextView(context).apply {
+            text = gestureName
+            setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.color_primary))
+            textSize = 14f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = android.view.Gravity.CENTER
+            layoutParams = LinearLayout.LayoutParams(dp(80), LinearLayout.LayoutParams.WRAP_CONTENT)
+        })
+
+        // 动作名称
+        row.addView(TextView(context).apply {
+            val currentActionName = GestureMappingManager.getDisplayName(context, action)
+            text = currentActionName
+            setTextColor(androidx.core.content.ContextCompat.getColor(context, R.color.color_text_primary))
+            textSize = 15f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                setMargins(dp(12), 0, 0, 0)
+            }
+            tag = "actionText" // 用于后续更新
+        })
+
+        // Spinner 下拉框
+        val spinner = Spinner(context, Spinner.MODE_DROPDOWN).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(32), dp(32))
+            adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, actionLabels).apply {
+                setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            }
+            setSelection(actionList.indexOf(action).coerceAtLeast(0))
+        }
+
+        // Share 目标输入框（仅当动作为 SHARE 时显示）
+        val paramInput = android.widget.EditText(context).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(dp(18), dp(4), dp(18), 0) }
+            hint = "分享目标（可选），用逗号隔开"
+            textSize = 13f
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            visibility = if (action == GestureMappingManager.Action.SHARE) android.view.View.VISIBLE else android.view.View.GONE
+            setText(GestureMappingManager.getActionParam(context, gesture) ?: "")
+        }
+
+        // Spinner 选择监听
+        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selectedAction = actionList[position]
+                GestureMappingManager.setActionForGesture(context, gesture, selectedAction)
+                // 更新动作名称显示
+                row.findViewWithTag<TextView>("actionText")?.text = GestureMappingManager.getDisplayName(context, selectedAction)
+                // 显示/隐藏 share 目标输入框
+                paramInput.visibility = if (selectedAction == GestureMappingManager.Action.SHARE) android.view.View.VISIBLE else android.view.View.GONE
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        // 监听输入框内容变化
+        paramInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val text = s?.toString()?.trim()
+                if (text.isNullOrEmpty()) {
+                    GestureMappingManager.setActionParam(context, gesture, null)
+                } else {
+                    GestureMappingManager.setActionParam(context, gesture, text)
+                }
+            }
+        })
+
+        row.addView(spinner)
+        container.addView(row)
+        container.addView(paramInput)
+
+        return container
+    }
+
+    private fun dp(value: Int): Int =
+        (value * resources.displayMetrics.density).toInt()
 }

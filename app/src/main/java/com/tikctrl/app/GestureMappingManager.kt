@@ -43,7 +43,12 @@ object GestureMappingManager {
     }
 
     fun resetMappings(context: Context) {
-        prefs(context).edit().clear().apply()
+        // 将所有手势重置为 NONE
+        GestureClassifier.Gesture.values().forEach { gesture ->
+            if (gesture != GestureClassifier.Gesture.NONE) {
+                setActionForGesture(context, gesture, Action.NONE)
+            }
+        }
     }
 
     private const val KEY_LABEL_PREFIX = "label_"

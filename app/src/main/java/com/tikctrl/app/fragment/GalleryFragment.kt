@@ -1,458 +1,249 @@
-/*
- * Copyright 2022 The TensorFlow Authors. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.tikctrl.app.fragment
 
-import android.graphics.Bitmap
-import android.graphics.ImageDecoder
-import android.net.Uri
-import android.os.Build
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
-import android.os.SystemClock
-import android.provider.MediaStore
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.AdapterView
-import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
+import android.widget.SeekBar
+import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.widget.SwitchCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import com.tikctrl.app.HandLandmarkerHelper
+import com.tikctrl.app.GestureStatistics
+import com.tikctrl.app.MainActivity
 import com.tikctrl.app.MainViewModel
-import com.tikctrl.app.databinding.FragmentGalleryBinding
-import com.google.mediapipe.tasks.vision.core.RunningMode
-import java.util.Locale
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.TimeUnit
+import com.tikctrl.app.R
 
-class GalleryFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
-
-    enum class MediaType {
-        IMAGE,
-        VIDEO,
-        UNKNOWN
-    }
-
-    private var _fragmentGalleryBinding: FragmentGalleryBinding? = null
-    private val fragmentGalleryBinding
-        get() = _fragmentGalleryBinding!!
-    private lateinit var handLandmarkerHelper: HandLandmarkerHelper
+class GalleryFragment : Fragment() {
     private val viewModel: MainViewModel by activityViewModels()
 
-    /** Blocking ML operations are performed using this executor */
-    private lateinit var backgroundExecutor: ScheduledExecutorService
+    private val THEME_MODE_SYSTEM = 0
+    private val THEME_MODE_LIGHT = 1
+    private val THEME_MODE_DARK = 2
 
-    private val getContent =
-        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-            // Handle the returned Uri
-            uri?.let { mediaUri ->
-                when (val mediaType = loadMediaType(mediaUri)) {
-                    MediaType.IMAGE -> runDetectionOnImage(mediaUri)
-                    MediaType.VIDEO -> runDetectionOnVideo(mediaUri)
-                    MediaType.UNKNOWN -> {
-                        updateDisplayView(mediaType)
-//                        Toast.makeText(
-//                            requireContext(),
-//                            "Unsupported data type.",
-//                            Toast.LENGTH_SHORT
-//                        ).show()
-                    }
-                }
-            }
-        }
+    private val COLOR_DEFAULT = "#12BCA5"
+    private val COLOR_BLUE = "#1887F2"
+    private val COLOR_PURPLE = "#7C3AED"
+    private val COLOR_ORANGE = "#FF9518"
+    private val COLOR_RED = "#FF4F42"
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View {
-        _fragmentGalleryBinding =
-            FragmentGalleryBinding.inflate(inflater, container, false)
-
-        return fragmentGalleryBinding.root
-    }
+    ): View = inflater.inflate(R.layout.fragment_gallery, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        fragmentGalleryBinding.fabGetContent.setOnClickListener {
-            getContent.launch(arrayOf("image/*", "video/*"))
+
+        // 初始化手势统计
+        GestureStatistics.init(requireContext())
+
+        // 绑定灵敏度显示（自动计算，不可手动调整）
+        bindSensitivity(view)
+
+        val prefs = requireContext().getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
+
+        bindPercentSeekBar(
+            view.findViewById(R.id.seek_alpha),
+            view.findViewById(R.id.tv_alpha_value),
+            prefs.getInt("floating_alpha", 70)
+        ) { value ->
+            prefs.edit().putInt("floating_alpha", value).apply()
         }
 
-        initBottomSheetControls()
+        bindSwitch(view.findViewById(R.id.switch_mirror), prefs, "mirror_mode", true)
+        bindSwitch(view.findViewById(R.id.switch_front_camera), prefs, "front_camera", true)
+
+        view.findViewById<TextView>(R.id.btn_check_permissions).setOnClickListener {
+            (requireActivity() as? com.tikctrl.app.MainActivity)?.checkAndRequestCameraAndOverlayPermission()
+        }
+
+        bindSingleHandMode(view)
+
+        bindThemeMode(view)
+        bindThemeColor(view)
     }
 
-    override fun onPause() {
-        fragmentGalleryBinding.overlay.clear()
-        if (fragmentGalleryBinding.videoView.isPlaying) {
-            fragmentGalleryBinding.videoView.stopPlayback()
+    private fun bindSensitivity(view: View) {
+        val tvSensitivity = view.findViewById<TextView>(R.id.tv_detection_value)
+        val layoutSensitivity = view.findViewById<View>(R.id.layout_sensitivity)
+
+        // 根据今日滑动次数计算灵敏度
+        val sensitivity = GestureStatistics.calculateSensitivity()
+        tvSensitivity.text = "${sensitivity}%"
+
+        // 点击显示历史记录
+        layoutSensitivity.setOnClickListener {
+            showSensitivityHistoryDialog()
         }
-        fragmentGalleryBinding.videoView.visibility = View.GONE
-        super.onPause()
     }
 
-    private fun initBottomSheetControls() {
-        // init bottom sheet settings
-        fragmentGalleryBinding.bottomSheetLayout.maxHandsValue.text =
-            viewModel.currentMaxHands.toString()
-        fragmentGalleryBinding.bottomSheetLayout.detectionThresholdValue.text =
-            String.format(
-                Locale.US, "%.2f", viewModel.currentMinHandDetectionConfidence
-            )
-        fragmentGalleryBinding.bottomSheetLayout.trackingThresholdValue.text =
-            String.format(
-                Locale.US, "%.2f", viewModel.currentMinHandTrackingConfidence
-            )
-        fragmentGalleryBinding.bottomSheetLayout.presenceThresholdValue.text =
-            String.format(
-                Locale.US, "%.2f", viewModel.currentMinHandPresenceConfidence
-            )
+    private fun showSensitivityHistoryDialog() {
+        val history = GestureStatistics.getHistory(7)
+        val todayCount = GestureStatistics.getTodayCount()
+        val totalCount = GestureStatistics.getTotalCount()
 
-        // When clicked, lower detection score threshold floor
-        fragmentGalleryBinding.bottomSheetLayout.detectionThresholdMinus.setOnClickListener {
-            if (viewModel.currentMinHandDetectionConfidence >= 0.2) {
-                viewModel.setMinHandDetectionConfidence(viewModel.currentMinHandDetectionConfidence - 0.1f)
-                updateControlsUi()
-            }
+        val historyText = history.joinToString("\n") { (date, count) ->
+            val today = if (date == history.lastOrNull()?.first) " (Today)" else ""
+            "  $date: $count times$today"
         }
 
-        // When clicked, raise detection score threshold floor
-        fragmentGalleryBinding.bottomSheetLayout.detectionThresholdPlus.setOnClickListener {
-            if (viewModel.currentMinHandDetectionConfidence <= 0.8) {
-                viewModel.setMinHandDetectionConfidence(viewModel.currentMinHandDetectionConfidence + 0.1f)
-                updateControlsUi()
-            }
-        }
+        val message = """
+            |Today's Swipes: $todayCount
+            |Total Swipes: $totalCount
+            |
+            |History (Last 7 Days):
+            |$historyText
+        """.trimMargin()
 
-        // When clicked, lower hand tracking score threshold floor
-        fragmentGalleryBinding.bottomSheetLayout.trackingThresholdMinus.setOnClickListener {
-            if (viewModel.currentMinHandTrackingConfidence >= 0.2) {
-                viewModel.setMinHandTrackingConfidence(
-                    viewModel.currentMinHandTrackingConfidence - 0.1f
-                )
-                updateControlsUi()
-            }
-        }
+        AlertDialog.Builder(requireContext())
+            .setTitle("Sensitivity History")
+            .setMessage(message)
+            .setPositiveButton("OK", null)
+            .show()
+    }
 
-        // When clicked, raise hand tracking score threshold floor
-        fragmentGalleryBinding.bottomSheetLayout.trackingThresholdPlus.setOnClickListener {
-            if (viewModel.currentMinHandTrackingConfidence <= 0.8) {
-                viewModel.setMinHandTrackingConfidence(
-                    viewModel.currentMinHandTrackingConfidence + 0.1f
-                )
-                updateControlsUi()
-            }
-        }
+    private fun bindThemeMode(view: View) {
+        val prefs = requireContext().getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
+        val tvThemeMode = view.findViewById<TextView>(R.id.tv_theme_mode)
+        val currentMode = prefs.getInt("theme_mode", THEME_MODE_SYSTEM)
+        updateThemeModeText(tvThemeMode, currentMode)
 
-        // When clicked, lower hand presence score threshold floor
-        fragmentGalleryBinding.bottomSheetLayout.presenceThresholdMinus.setOnClickListener {
-            if (viewModel.currentMinHandPresenceConfidence >= 0.2) {
-                viewModel.setMinHandPresenceConfidence(
-                    viewModel.currentMinHandPresenceConfidence - 0.1f
-                )
-                updateControlsUi()
-            }
+        tvThemeMode.setOnClickListener {
+            val modes = arrayOf("System", "Light", "Dark")
+            AlertDialog.Builder(requireContext())
+                .setTitle("Theme Mode")
+                .setSingleChoiceItems(modes, currentMode) { dialog, which ->
+                    prefs.edit().putInt("theme_mode", which).apply()
+                    updateThemeModeText(tvThemeMode, which)
+                    dialog.dismiss()
+                    recreateActivity()
+                }
+                .show()
         }
+    }
 
-        // When clicked, raise hand presence score threshold floor
-        fragmentGalleryBinding.bottomSheetLayout.presenceThresholdPlus.setOnClickListener {
-            if (viewModel.currentMinHandPresenceConfidence <= 0.8) {
-                viewModel.setMinHandPresenceConfidence(
-                    viewModel.currentMinHandPresenceConfidence + 0.1f
-                )
-                updateControlsUi()
-            }
+    private fun updateThemeModeText(textView: TextView, mode: Int) {
+        val modeName = when (mode) {
+            THEME_MODE_SYSTEM -> "跟随系统"
+            THEME_MODE_LIGHT -> "浅色"
+            THEME_MODE_DARK -> "深色"
+            else -> "跟随系统"
         }
+        textView.text = "主体模式                                                 $modeName  >"
+    }
 
-        // When clicked, reduce the number of objects that can be detected at a time
-        fragmentGalleryBinding.bottomSheetLayout.maxHandsMinus.setOnClickListener {
-            if (viewModel.currentMaxHands > 1) {
-                viewModel.setMaxHands(viewModel.currentMaxHands - 1)
-                updateControlsUi()
-            }
-        }
+    private fun bindThemeColor(view: View) {
+        val prefs = requireContext().getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
+        val currentColor = prefs.getString("theme_color", COLOR_DEFAULT) ?: COLOR_DEFAULT
 
-        // When clicked, increase the number of objects that can be detected at a time
-        fragmentGalleryBinding.bottomSheetLayout.maxHandsPlus.setOnClickListener {
-            if (viewModel.currentMaxHands < 2) {
-                viewModel.setMaxHands(viewModel.currentMaxHands + 1)
-                updateControlsUi()
-            }
-        }
-
-        // When clicked, change the underlying hardware used for inference. Current options are CPU
-        // GPU, and NNAPI
-        fragmentGalleryBinding.bottomSheetLayout.spinnerDelegate.setSelection(
-            viewModel.currentDelegate,
-            false
+        val colorSwatches = listOf(
+            view.findViewById<View>(R.id.swatch_blue) to COLOR_BLUE,
+            view.findViewById<View>(R.id.swatch_purple) to COLOR_PURPLE,
+            view.findViewById<View>(R.id.swatch_orange) to COLOR_ORANGE,
+            view.findViewById<View>(R.id.swatch_red) to COLOR_RED
         )
-        fragmentGalleryBinding.bottomSheetLayout.spinnerDelegate.onItemSelectedListener =
-            object : AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(
-                    p0: AdapterView<*>?,
-                    p1: View?,
-                    p2: Int,
-                    p3: Long
-                ) {
 
-                    viewModel.setDelegate(p2)
-                    updateControlsUi()
-                }
-
-                override fun onNothingSelected(p0: AdapterView<*>?) {
-                    /* no op */
-                }
+        colorSwatches.forEach { (swatch, color) ->
+            swatch.setOnClickListener {
+                prefs.edit().putString("theme_color", color).apply()
+                updateCurrentColorSwatch(view, color)
+                applyThemeColor(color)
             }
+        }
+
+        updateCurrentColorSwatch(view, currentColor)
     }
 
-    // Update the values displayed in the bottom sheet. Reset detector.
-    private fun updateControlsUi() {
-        if (fragmentGalleryBinding.videoView.isPlaying) {
-            fragmentGalleryBinding.videoView.stopPlayback()
-        }
-        fragmentGalleryBinding.videoView.visibility = View.GONE
-        fragmentGalleryBinding.imageResult.visibility = View.GONE
-        fragmentGalleryBinding.overlay.clear()
-        fragmentGalleryBinding.bottomSheetLayout.maxHandsValue.text =
-            viewModel.currentMaxHands.toString()
-        fragmentGalleryBinding.bottomSheetLayout.detectionThresholdValue.text =
-            String.format(
-                Locale.US, "%.2f", viewModel.currentMinHandDetectionConfidence
-            )
-        fragmentGalleryBinding.bottomSheetLayout.trackingThresholdValue.text =
-            String.format(
-                Locale.US, "%.2f", viewModel.currentMinHandTrackingConfidence
-            )
-        fragmentGalleryBinding.bottomSheetLayout.presenceThresholdValue.text =
-            String.format(
-                Locale.US, "%.2f", viewModel.currentMinHandPresenceConfidence
-            )
-
-        fragmentGalleryBinding.overlay.clear()
-        fragmentGalleryBinding.tvPlaceholder.visibility = View.VISIBLE
+    private fun updateCurrentColorSwatch(view: View, color: String) {
+        val swatchCurrent = view.findViewById<View>(R.id.swatch_current)
+        swatchCurrent.setBackgroundColor(android.graphics.Color.parseColor(color))
     }
 
-    // Load and display the image.
-    private fun runDetectionOnImage(uri: Uri) {
-        setUiEnabled(false)
-        backgroundExecutor = Executors.newSingleThreadScheduledExecutor()
-        updateDisplayView(MediaType.IMAGE)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val source = ImageDecoder.createSource(
-                requireActivity().contentResolver,
-                uri
-            )
-            ImageDecoder.decodeBitmap(source)
-        } else {
-            MediaStore.Images.Media.getBitmap(
-                requireActivity().contentResolver,
-                uri
-            )
-        }
-            .copy(Bitmap.Config.ARGB_8888, true)
-            ?.let { bitmap ->
-                fragmentGalleryBinding.imageResult.setImageBitmap(bitmap)
+    private fun applyThemeColor(color: String) {
+        val activity = requireActivity() as MainActivity
+        activity.applyThemeColor(color)
+    }
 
-                // Run hand landmarker on the input image
-                backgroundExecutor.execute {
+    private fun recreateActivity() {
+        val intent = Intent(requireContext(), MainActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+        startActivity(intent)
+        requireActivity().finish()
+    }
 
-                    handLandmarkerHelper =
-                        HandLandmarkerHelper(
-                            context = requireContext(),
-                            runningMode = RunningMode.IMAGE,
-                            minHandDetectionConfidence = viewModel.currentMinHandDetectionConfidence,
-                            minHandTrackingConfidence = viewModel.currentMinHandTrackingConfidence,
-                            minHandPresenceConfidence = viewModel.currentMinHandPresenceConfidence,
-                            maxNumHands = viewModel.currentMaxHands,
-                            currentDelegate = viewModel.currentDelegate
-                        )
+    private fun bindSingleHandMode(view: View) {
+        val tvSingleHandMode = view.findViewById<TextView>(R.id.tv_single_hand_mode)
+        val currentMode = com.tikctrl.app.GestureMappingManager.getSingleHandMode(requireContext())
+        updateSingleHandModeText(tvSingleHandMode, currentMode)
 
-                    handLandmarkerHelper.detectImage(bitmap)?.let { result ->
-                        activity?.runOnUiThread {
-                            fragmentGalleryBinding.overlay.setResults(
-                                result.results[0],
-                                bitmap.height,
-                                bitmap.width,
-                                RunningMode.IMAGE
-                            )
-
-                            setUiEnabled(true)
-                            fragmentGalleryBinding.bottomSheetLayout.inferenceTimeVal.text =
-                                String.format("%d ms", result.inferenceTime)
-                        }
-                    } ?: run { Log.e(TAG, "Error running hand landmarker.") }
-
-                    handLandmarkerHelper.clearHandLandmarker()
-                }
+        tvSingleHandMode.setOnClickListener {
+            val modes = arrayOf("Both", "Left", "Right")
+            val currentIndex = when (currentMode) {
+                com.tikctrl.app.GestureMappingManager.SingleHandMode.BOTH -> 0
+                com.tikctrl.app.GestureMappingManager.SingleHandMode.LEFT -> 1
+                com.tikctrl.app.GestureMappingManager.SingleHandMode.RIGHT -> 2
             }
-    }
-
-    private fun runDetectionOnVideo(uri: Uri) {
-        setUiEnabled(false)
-        updateDisplayView(MediaType.VIDEO)
-
-        with(fragmentGalleryBinding.videoView) {
-            setVideoURI(uri)
-            // mute the audio
-            setOnPreparedListener { it.setVolume(0f, 0f) }
-            requestFocus()
-        }
-
-        backgroundExecutor = Executors.newSingleThreadScheduledExecutor()
-        backgroundExecutor.execute {
-
-            handLandmarkerHelper =
-                HandLandmarkerHelper(
-                    context = requireContext(),
-                    runningMode = RunningMode.VIDEO,
-                    minHandDetectionConfidence = viewModel.currentMinHandDetectionConfidence,
-                    minHandTrackingConfidence = viewModel.currentMinHandTrackingConfidence,
-                    minHandPresenceConfidence = viewModel.currentMinHandPresenceConfidence,
-                    maxNumHands = viewModel.currentMaxHands,
-                    currentDelegate = viewModel.currentDelegate
-                )
-
-            activity?.runOnUiThread {
-                fragmentGalleryBinding.videoView.visibility = View.GONE
-                fragmentGalleryBinding.progress.visibility = View.VISIBLE
-            }
-
-            handLandmarkerHelper.detectVideoFile(uri, VIDEO_INTERVAL_MS)
-                ?.let { resultBundle ->
-                    activity?.runOnUiThread { displayVideoResult(resultBundle) }
-                }
-                ?: run { Log.e(TAG, "Error running hand landmarker.") }
-
-            handLandmarkerHelper.clearHandLandmarker()
-        }
-    }
-
-    // Setup and display the video.
-    private fun displayVideoResult(result: HandLandmarkerHelper.ResultBundle) {
-
-        fragmentGalleryBinding.videoView.visibility = View.VISIBLE
-        fragmentGalleryBinding.progress.visibility = View.GONE
-
-        fragmentGalleryBinding.videoView.start()
-        val videoStartTimeMs = SystemClock.uptimeMillis()
-
-        backgroundExecutor.scheduleAtFixedRate(
-            {
-                activity?.runOnUiThread {
-                    val videoElapsedTimeMs =
-                        SystemClock.uptimeMillis() - videoStartTimeMs
-                    val resultIndex =
-                        videoElapsedTimeMs.div(VIDEO_INTERVAL_MS).toInt()
-
-                    if (resultIndex >= result.results.size || fragmentGalleryBinding.videoView.visibility == View.GONE) {
-                        // The video playback has finished so we stop drawing bounding boxes
-                        backgroundExecutor.shutdown()
-                    } else {
-                        fragmentGalleryBinding.overlay.setResults(
-                            result.results[resultIndex],
-                            result.inputImageHeight,
-                            result.inputImageWidth,
-                            RunningMode.VIDEO
-                        )
-
-                        setUiEnabled(true)
-
-                        fragmentGalleryBinding.bottomSheetLayout.inferenceTimeVal.text =
-                            String.format("%d ms", result.inferenceTime)
+            AlertDialog.Builder(requireContext())
+                .setTitle("Single Hand Mode")
+                .setSingleChoiceItems(modes, currentIndex) { dialog, which ->
+                    val mode = when (which) {
+                        1 -> com.tikctrl.app.GestureMappingManager.SingleHandMode.LEFT
+                        2 -> com.tikctrl.app.GestureMappingManager.SingleHandMode.RIGHT
+                        else -> com.tikctrl.app.GestureMappingManager.SingleHandMode.BOTH
                     }
+                    com.tikctrl.app.GestureMappingManager.setSingleHandMode(requireContext(), mode)
+                    updateSingleHandModeText(tvSingleHandMode, mode)
+                    dialog.dismiss()
                 }
-            },
-            0,
-            VIDEO_INTERVAL_MS,
-            TimeUnit.MILLISECONDS
-        )
-    }
-
-    private fun updateDisplayView(mediaType: MediaType) {
-        fragmentGalleryBinding.imageResult.visibility =
-            if (mediaType == MediaType.IMAGE) View.VISIBLE else View.GONE
-        fragmentGalleryBinding.videoView.visibility =
-            if (mediaType == MediaType.VIDEO) View.VISIBLE else View.GONE
-        fragmentGalleryBinding.tvPlaceholder.visibility =
-            if (mediaType == MediaType.UNKNOWN) View.VISIBLE else View.GONE
-    }
-
-    // Check the type of media that user selected.
-    private fun loadMediaType(uri: Uri): MediaType {
-        val mimeType = context?.contentResolver?.getType(uri)
-        mimeType?.let {
-            if (mimeType.startsWith("image")) return MediaType.IMAGE
-            if (mimeType.startsWith("video")) return MediaType.VIDEO
-        }
-
-        return MediaType.UNKNOWN
-    }
-
-    private fun setUiEnabled(enabled: Boolean) {
-        fragmentGalleryBinding.fabGetContent.isEnabled = enabled
-        fragmentGalleryBinding.bottomSheetLayout.detectionThresholdMinus.isEnabled =
-            enabled
-        fragmentGalleryBinding.bottomSheetLayout.detectionThresholdPlus.isEnabled =
-            enabled
-        fragmentGalleryBinding.bottomSheetLayout.trackingThresholdMinus.isEnabled =
-            enabled
-        fragmentGalleryBinding.bottomSheetLayout.trackingThresholdPlus.isEnabled =
-            enabled
-        fragmentGalleryBinding.bottomSheetLayout.presenceThresholdMinus.isEnabled =
-            enabled
-        fragmentGalleryBinding.bottomSheetLayout.presenceThresholdPlus.isEnabled =
-            enabled
-        fragmentGalleryBinding.bottomSheetLayout.maxHandsPlus.isEnabled =
-            enabled
-        fragmentGalleryBinding.bottomSheetLayout.maxHandsMinus.isEnabled =
-            enabled
-        fragmentGalleryBinding.bottomSheetLayout.spinnerDelegate.isEnabled =
-            enabled
-    }
-
-    private fun classifyingError() {
-        activity?.runOnUiThread {
-            fragmentGalleryBinding.progress.visibility = View.GONE
-            setUiEnabled(true)
-            updateDisplayView(MediaType.UNKNOWN)
+                .show()
         }
     }
 
-    override fun onError(error: String, errorCode: Int) {
-        classifyingError()
-        activity?.runOnUiThread {
-//            Toast.makeText(requireContext(), error, Toast.LENGTH_SHORT).show()
-            if (errorCode == HandLandmarkerHelper.GPU_ERROR) {
-                fragmentGalleryBinding.bottomSheetLayout.spinnerDelegate.setSelection(
-                    HandLandmarkerHelper.DELEGATE_CPU,
-                    false
-                )
+    private fun updateSingleHandModeText(textView: TextView, mode: com.tikctrl.app.GestureMappingManager.SingleHandMode) {
+        val modeName = when (mode) {
+            com.tikctrl.app.GestureMappingManager.SingleHandMode.BOTH -> "Both"
+            com.tikctrl.app.GestureMappingManager.SingleHandMode.LEFT -> "Left"
+            com.tikctrl.app.GestureMappingManager.SingleHandMode.RIGHT -> "Right"
+        }
+        textView.text = "Single Hand Mode                            $modeName  >"
+    }
+
+    private fun bindPercentSeekBar(
+        seekBar: SeekBar,
+        label: TextView,
+        initialValue: Int,
+        onChanged: (Int) -> Unit
+    ) {
+        seekBar.progress = initialValue
+        label.text = "$initialValue%"
+        seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
+                label.text = "$progress%"
+                if (fromUser) onChanged(progress)
             }
+
+            override fun onStartTrackingTouch(bar: SeekBar?) = Unit
+            override fun onStopTrackingTouch(bar: SeekBar?) {
+                onChanged(seekBar.progress)
+            }
+        })
+    }
+
+    private fun bindSwitch(
+        switch: SwitchCompat,
+        prefs: android.content.SharedPreferences,
+        key: String,
+        defaultValue: Boolean
+    ) {
+        switch.isChecked = prefs.getBoolean(key, defaultValue)
+        switch.setOnCheckedChangeListener { _, checked ->
+            prefs.edit().putBoolean(key, checked).apply()
         }
     }
 
-    override fun onResults(resultBundle: HandLandmarkerHelper.ResultBundle) {
-        // no-op
-    }
-
-    companion object {
-        private const val TAG = "GalleryFragment"
-
-        // Value used to get frames at specific intervals for inference (e.g. every 300ms)
-        private const val VIDEO_INTERVAL_MS = 300L
-    }
 }
