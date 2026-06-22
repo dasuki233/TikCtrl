@@ -32,6 +32,9 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.core.app.ActivityCompat
 import android.graphics.Color
+import android.widget.LinearLayout
+import android.widget.ImageView
+import android.widget.TextView
 
 class MainActivity : AppCompatActivity() {
     private lateinit var activityMainBinding: ActivityMainBinding
@@ -88,10 +91,7 @@ class MainActivity : AppCompatActivity() {
 
 
 
-        activityMainBinding.navigation.setupWithNavController(navController)
-        activityMainBinding.navigation.setOnNavigationItemReselectedListener {
-            // ignore the reselection
-        }
+        setupCustomNavigation(navController)
 
     }
 
@@ -240,5 +240,47 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             window.navigationBarColor = color
         }
+    }
+
+    private fun setupCustomNavigation(navController: androidx.navigation.NavController) {
+        val navHome = findViewById<LinearLayout>(R.id.nav_home)
+        val navCamera = findViewById<LinearLayout>(R.id.nav_camera)
+        val navSettings = findViewById<LinearLayout>(R.id.nav_settings)
+
+        val ivHome = findViewById<ImageView>(R.id.iv_home)
+        val ivCamera = findViewById<ImageView>(R.id.iv_camera)
+        val ivSettings = findViewById<ImageView>(R.id.iv_settings)
+
+        navHome.setOnClickListener {
+            navController.navigate(R.id.home_fragment)
+            updateNavSelection(ivHome, ivCamera, ivSettings, 0)
+        }
+
+        navCamera.setOnClickListener {
+            navController.navigate(R.id.camera_fragment)
+            updateNavSelection(ivHome, ivCamera, ivSettings, 1)
+        }
+
+        navSettings.setOnClickListener {
+            navController.navigate(R.id.gallery_fragment)
+            updateNavSelection(ivHome, ivCamera, ivSettings, 2)
+        }
+
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            when (destination.id) {
+                R.id.home_fragment -> updateNavSelection(ivHome, ivCamera, ivSettings, 0)
+                R.id.camera_fragment -> updateNavSelection(ivHome, ivCamera, ivSettings, 1)
+                R.id.gallery_fragment -> updateNavSelection(ivHome, ivCamera, ivSettings, 2)
+            }
+        }
+    }
+
+    private fun updateNavSelection(ivHome: ImageView, ivCamera: ImageView, ivSettings: ImageView, selectedIndex: Int) {
+        val activeColor = ContextCompat.getColor(this, R.color.color_nav_active)
+        val inactiveColor = ContextCompat.getColor(this, R.color.color_nav_inactive)
+
+        ivHome.setColorFilter(if (selectedIndex == 0) activeColor else inactiveColor)
+        ivCamera.setColorFilter(if (selectedIndex == 1) activeColor else inactiveColor)
+        ivSettings.setColorFilter(if (selectedIndex == 2) activeColor else inactiveColor)
     }
 }

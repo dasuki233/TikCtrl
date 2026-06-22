@@ -114,9 +114,9 @@ class GalleryFragment : Fragment() {
         updateThemeModeText(tvThemeMode, currentMode)
 
         tvThemeMode.setOnClickListener {
-            val modes = arrayOf("System", "Light", "Dark")
+            val modes = arrayOf("跟随系统", "浅色", "深色")
             AlertDialog.Builder(requireContext())
-                .setTitle("Theme Mode")
+                .setTitle("主题模式")
                 .setSingleChoiceItems(modes, currentMode) { dialog, which ->
                     prefs.edit().putInt("theme_mode", which).apply()
                     updateThemeModeText(tvThemeMode, which)
