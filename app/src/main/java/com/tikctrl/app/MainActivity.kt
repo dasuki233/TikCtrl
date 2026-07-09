@@ -28,6 +28,8 @@ import com.tikctrl.app.databinding.ActivityMainBinding
 import android.net.Uri
 import android.os.Build
 import android.app.Activity
+import android.os.Handler
+import android.os.Looper
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.core.app.ActivityCompat
@@ -166,14 +168,26 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // If user granted overlay permission while away from the app, start the service now.
-        if (!startedGestureService && (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this))) {
+        if ((Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this))) {
             if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                startHandGestureServiceIfNeeded()
+                if (!isServiceRunning(HandGestureService::class.java)) {
+                    startedGestureService = false
+                    startHandGestureServiceIfNeeded()
+                }
             } else {
                 ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.CAMERA), REQ_CAMERA_PERM)
             }
         }
+    }
+
+    private fun isServiceRunning(serviceClass: Class<*>): Boolean {
+        val manager = getSystemService(android.content.Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        for (service in manager.getRunningServices(Int.MAX_VALUE)) {
+            if (serviceClass.name == service.service.className) {
+                return true
+            }
+        }
+        return false
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -213,9 +227,28 @@ class MainActivity : AppCompatActivity() {
 
     private fun startHandGestureServiceIfNeeded() {
         if (startedGestureService) return
+        startHandGestureService()
+    }
+
+    fun startHandGestureService() {
         val intent = Intent(this, HandGestureService::class.java)
-        ContextCompat.startForegroundService(this, intent)
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            stopService(intent)
+            Handler(Looper.getMainLooper()).postDelayed({
+                startForegroundService(intent)
+            }, 200)
+        } else {
+            stopService(intent)
+            startService(intent)
+        }
         startedGestureService = true
+    }
+
+    fun stopHandGestureService() {
+        val intent = Intent(this, HandGestureService::class.java)
+        stopService(intent)
+        startedGestureService = false
     }
 
     override fun onBackPressed() {

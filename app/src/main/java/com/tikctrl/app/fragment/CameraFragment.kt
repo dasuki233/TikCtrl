@@ -36,6 +36,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.Navigation
 import com.tikctrl.app.GestureClassifier
+import com.tikctrl.app.GestureMappingManager
 import com.tikctrl.app.HandGestureService
 import com.tikctrl.app.HandGestureService.Companion
 import com.tikctrl.app.HandLandmarkerHelper
@@ -400,7 +401,39 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
 
         try {
             val classifier = GestureClassifier()
-            val gesture = classifier.classify(resultBundle.results.first())
+            val result = resultBundle.results.first()
+            
+            val mode = GestureMappingManager.getSingleHandMode(requireContext())
+            var selectedHandIndex: Int? = null
+            
+            if (mode != GestureMappingManager.SingleHandMode.BOTH) {
+                val landmarksList = result.landmarks()
+                val handednessLists = result.handednesses()
+                for (i in 0 until handednessLists.size) {
+                    val handCats = handednessLists[i]
+                    for (j in 0 until handCats.size) {
+                        val name = handCats[j].categoryName()
+                        if ((mode == GestureMappingManager.SingleHandMode.LEFT && name.equals("Left", true)) ||
+                            (mode == GestureMappingManager.SingleHandMode.RIGHT && name.equals("Right", true))) {
+                            selectedHandIndex = i
+                            break
+                        }
+                    }
+                    if (selectedHandIndex != null) break
+                }
+            }
+            
+            if (mode != GestureMappingManager.SingleHandMode.BOTH && selectedHandIndex == null) {
+                Log.d(TAG, "Skipping frame - no matching hand for single hand mode: $mode")
+                return
+            }
+            
+            val gesture = if (selectedHandIndex != null && selectedHandIndex < result.landmarks().size) {
+                classifier.classifySingleHand(result.landmarks()[selectedHandIndex])
+            } else {
+                classifier.classify(result)
+            }
+            
             Log.d(TAG, "Classified gesture (UI path): $gesture")
 
             // 检查是否在冷却期内（1.5秒）

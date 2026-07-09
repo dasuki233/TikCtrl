@@ -15,6 +15,8 @@ import androidx.fragment.app.Fragment
 import com.tikctrl.app.GestureClassifier
 import com.tikctrl.app.GestureMappingManager
 import com.tikctrl.app.GestureStatistics
+import com.tikctrl.app.HandGestureService
+import com.tikctrl.app.MainActivity
 import com.tikctrl.app.R
 
 class HomeFragment : Fragment() {
@@ -28,11 +30,29 @@ class HomeFragment : Fragment() {
         // 初始化手势统计
         GestureStatistics.init(requireContext())
 
-        val prefs = requireContext().getSharedPreferences("gesture_prefs", android.content.Context.MODE_PRIVATE)
         root.findViewById<SwitchCompat>(R.id.switch_visual_feedback).apply {
-            isChecked = prefs.getBoolean("visual_feedback_enabled", true)
+            isChecked = isServiceRunning(HandGestureService::class.java)
             setOnCheckedChangeListener { _, checked ->
-                prefs.edit().putBoolean("visual_feedback_enabled", checked).apply()
+                val activity = activity as? MainActivity
+                if (activity == null) {
+                    android.widget.Toast.makeText(requireContext(), "无法获取主界面", android.widget.Toast.LENGTH_SHORT).show()
+                    return@setOnCheckedChangeListener
+                }
+                
+                if (checked) {
+                    if (android.provider.Settings.canDrawOverlays(requireContext())) {
+                        activity.startHandGestureService()
+                        android.widget.Toast.makeText(requireContext(), "悬浮窗已开启", android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        isChecked = false
+                        android.widget.Toast.makeText(requireContext(), "请先授予悬浮窗权限", android.widget.Toast.LENGTH_SHORT).show()
+                        val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${requireContext().packageName}"))
+                        startActivity(intent)
+                    }
+                } else {
+                    activity.stopHandGestureService()
+                    android.widget.Toast.makeText(requireContext(), "悬浮窗已关闭", android.widget.Toast.LENGTH_SHORT).show()
+                }
             }
         }
 
@@ -88,9 +108,9 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // 每次显示时更新统计数据
         GestureStatistics.init(requireContext())
         view?.let { updateStatistics(it) }
+        view?.findViewById<SwitchCompat>(R.id.switch_visual_feedback)?.isChecked = isServiceRunning(HandGestureService::class.java)
     }
 
     private fun updateStatistics(root: View) {
@@ -281,4 +301,14 @@ class HomeFragment : Fragment() {
 
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density).toInt()
+
+    private fun isServiceRunning(serviceClass: Class<*>): Boolean {
+        val manager = requireContext().getSystemService(android.content.Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        for (service in manager.getRunningServices(Int.MAX_VALUE)) {
+            if (serviceClass.name == service.service.className) {
+                return true
+            }
+        }
+        return false
+    }
 }

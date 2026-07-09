@@ -24,6 +24,7 @@ import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
 import java.util.concurrent.Executors
+import java.util.concurrent.ExecutorService
 import android.view.WindowManager
 import android.view.View
 import android.view.LayoutInflater
@@ -32,6 +33,8 @@ import android.graphics.PixelFormat
 import android.view.Gravity
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.view.MotionEvent
 import android.view.ViewGroup
 import android.content.Context
@@ -47,9 +50,10 @@ class HandGestureService : LifecycleService() {
         const val EXTRA_GESTURE = "gesture"     // 广播中携带手势数据的键名
     }
 
-    private var handLandmarker: HandLandmarker? = null  // MediaPipe手部关键点检测器
-    private val cameraExecutor = Executors.newSingleThreadExecutor()    // 相机操作线程池
-    private val gestureClassifier = GestureClassifier() // 手势分类器
+    private var handLandmarker: HandLandmarker? = null
+    private var cameraExecutor: ExecutorService? = null
+    private val gestureClassifier = GestureClassifier()
+    private var isDestroyed = false
     // Floating window
     private var windowManager: WindowManager? = null
     private var floatingView: View? = null
@@ -70,6 +74,8 @@ class HandGestureService : LifecycleService() {
 
     override fun onCreate() {
         super.onCreate()
+        Log.d(TAG, "HandGestureService onCreate() called")
+        cameraExecutor = Executors.newSingleThreadExecutor()
         startForegroundService()
         setupHandLandmarker()
         // Create floating preview if we have overlay permission
@@ -152,7 +158,7 @@ class HandGestureService : LifecycleService() {
                 }
             }
 
-        }, cameraExecutor)
+        }, cameraExecutor!!)
     }
 
     // Bind Preview and Analysis according to currentCameraSelector and previewView availability
@@ -163,15 +169,27 @@ class HandGestureService : LifecycleService() {
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .build()
 
-        analyzer.setAnalyzer(cameraExecutor) { imageProxy: ImageProxy ->
-            val mpImage = imageProxy.toMpImage()
-            if (mpImage == null) {
-                Log.w(TAG, "ImageProxy -> MPImage conversion returned null")
+        analyzer.setAnalyzer(cameraExecutor!!) { imageProxy: ImageProxy ->
+            try {
+                if (isDestroyed) {
+                    imageProxy.close()
+                    return@setAnalyzer
+                }
+                val mpImage = imageProxy.toMpImage()
+                if (mpImage == null) {
+                    Log.w(TAG, "ImageProxy -> MPImage conversion returned null")
+                    imageProxy.close()
+                    return@setAnalyzer
+                }
+                val landmarker = handLandmarker
+                if (landmarker != null && !isDestroyed) {
+                    landmarker.detectAsync(mpImage, System.currentTimeMillis())
+                }
                 imageProxy.close()
-                return@setAnalyzer
+            } catch (e: Exception) {
+                Log.e(TAG, "Analyzer error: ${e.message}")
+                imageProxy.close()
             }
-            handLandmarker?.detectAsync(mpImage, System.currentTimeMillis())
-            imageProxy.close()
         }
 
         val cameraSelector = currentCameraSelector
@@ -208,72 +226,45 @@ class HandGestureService : LifecycleService() {
         }
     }
 
-    // Create a small floating PreviewView and attach to WindowManager
     private fun createFloatingPreview() {
         try {
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-            // Create a programmatic container to avoid inflating a full-screen system layout
-            val container = android.widget.FrameLayout(this)
+            val inflater = LayoutInflater.from(this)
+            val container = inflater.inflate(R.layout.float_preview, null) as FrameLayout
 
-            val PREVIEW_W = 480
-            val PREVIEW_H = 640
-            previewView = PreviewView(this)
-            val previewLp = ViewGroup.LayoutParams(PREVIEW_W, PREVIEW_H)
-            previewView!!.layoutParams = previewLp
-            container.addView(previewView)
+            previewView = container.findViewById(R.id.float_preview_view)
 
-            // Close button (top-right)
-            val closeBtn = ImageButton(this)
-            closeBtn.setImageResource(android.R.drawable.ic_menu_close_clear_cancel)
-            val closeParams = FrameLayout.LayoutParams(80, 80)
-            closeParams.gravity = Gravity.TOP or Gravity.END
-            closeBtn.layoutParams = closeParams
-            container.addView(closeBtn)
+            val closeBtn = container.findViewById<ImageButton>(R.id.btn_close)
             closeBtn.setOnClickListener {
                 stopSelf()
             }
 
-            // Switch camera button (top-left)
-            val switchBtn = ImageButton(this)
-            switchBtn.setImageResource(android.R.drawable.ic_menu_camera)
-            val switchParams = FrameLayout.LayoutParams(80, 80)
-            switchParams.gravity = Gravity.TOP or Gravity.START
-            switchBtn.layoutParams = switchParams
-            container.addView(switchBtn)
+            val switchBtn = container.findViewById<ImageButton>(R.id.btn_switch_camera)
             switchBtn.setOnClickListener {
                 switchCamera()
             }
 
-            // Single-hand mode toggle (top-center-right)
-            val singleHandBtn = ImageButton(this)
-            singleHandBtn.setImageResource(android.R.drawable.ic_menu_manage)
-            val singleHandParams = FrameLayout.LayoutParams(80, 80)
-            singleHandParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            singleHandParams.marginEnd = 90
-            singleHandBtn.layoutParams = singleHandParams
-            container.addView(singleHandBtn)
-            // initialize icon/tooltip from prefs
+            val singleHandBtn = container.findViewById<ImageButton>(R.id.btn_single_hand)
             fun updateSingleHandIcon() {
                 val mode = GestureMappingManager.getSingleHandMode(this)
                 when (mode) {
                     GestureMappingManager.SingleHandMode.BOTH -> {
-                        singleHandBtn.setImageResource(android.R.drawable.ic_menu_manage)
-                        singleHandBtn.contentDescription = "Both hands"
+                        singleHandBtn.setImageResource(R.drawable.ic_baseline_hand_24)
+                        singleHandBtn.contentDescription = "双手模式"
                     }
                     GestureMappingManager.SingleHandMode.LEFT -> {
-                        singleHandBtn.setImageResource(android.R.drawable.ic_menu_revert)
-                        singleHandBtn.contentDescription = "Left hand only"
+                        singleHandBtn.setImageResource(R.drawable.ic_baseline_arrow_back_24)
+                        singleHandBtn.contentDescription = "仅左手"
                     }
                     GestureMappingManager.SingleHandMode.RIGHT -> {
-                        singleHandBtn.setImageResource(android.R.drawable.ic_menu_rotate)
-                        singleHandBtn.contentDescription = "Right hand only"
+                        singleHandBtn.setImageResource(R.drawable.ic_baseline_arrow_forward_24)
+                        singleHandBtn.contentDescription = "仅右手"
                     }
                 }
             }
             updateSingleHandIcon()
 
             singleHandBtn.setOnClickListener {
-                // cycle through modes: BOTH -> LEFT -> RIGHT -> BOTH
                 val current = GestureMappingManager.getSingleHandMode(this)
                 val next = when (current) {
                     GestureMappingManager.SingleHandMode.BOTH -> GestureMappingManager.SingleHandMode.LEFT
@@ -282,24 +273,16 @@ class HandGestureService : LifecycleService() {
                 }
                 GestureMappingManager.setSingleHandMode(this, next)
                 updateSingleHandIcon()
-                // brief feedback
                 android.widget.Toast.makeText(this, "单手模式: ${next.name}", android.widget.Toast.LENGTH_SHORT).show()
             }
 
-            // Minimize button (top-center)
-            val minimizeBtn = ImageButton(this)
-            minimizeBtn.setImageResource(android.R.drawable.ic_menu_zoom)
-            val minimizeParams = FrameLayout.LayoutParams(80, 80)
-            minimizeParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            minimizeBtn.layoutParams = minimizeParams
-            container.addView(minimizeBtn)
+            val minimizeBtn = container.findViewById<ImageButton>(R.id.btn_minimize)
 
-            // Layout params for overlay
             val flag = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
             val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE
             layoutParams = WindowManager.LayoutParams(
-                PREVIEW_W,
-                PREVIEW_H,
+                480,
+                640,
                 type,
                 flag,
                 PixelFormat.TRANSLUCENT
@@ -308,7 +291,6 @@ class HandGestureService : LifecycleService() {
             layoutParams!!.x = 50
             layoutParams!!.y = 200
 
-            // Add basic drag support
             var initialX = 0
             var initialY = 0
             var touchX = 0f
@@ -336,20 +318,15 @@ class HandGestureService : LifecycleService() {
                 }
             }
 
-            // Minimize behavior: replace the large container with a small floating icon
             minimizeBtn.setOnClickListener {
                 try {
-                    // Remember current position
                     val savedX = layoutParams!!.x
                     val savedY = layoutParams!!.y
-                    // Remove large container
                     windowManager?.removeView(container)
                     floatingView = null
                     previewView = null
 
-                    // Create small icon view by inflating layout
-                    val inflater = LayoutInflater.from(this)
-                    val iconView = inflater.inflate(R.layout.float_icon, null) as ImageView
+                    val iconView = inflater.inflate(R.layout.float_icon, null) as LinearLayout
 
                     val iconLp = WindowManager.LayoutParams(
                         WindowManager.LayoutParams.WRAP_CONTENT,
@@ -362,48 +339,54 @@ class HandGestureService : LifecycleService() {
                     iconLp.x = savedX
                     iconLp.y = savedY
 
-                    // Drag support for icon
                     var iInitialX = 0
                     var iInitialY = 0
                     var iTouchX = 0f
                     var iTouchY = 0f
-                    iconView.setOnTouchListener { v, event ->
+                    var isDragging = false
+                    iconView.setOnTouchListener { _: View, event: MotionEvent ->
                         when (event.action) {
                             MotionEvent.ACTION_DOWN -> {
                                 iInitialX = iconLp.x
                                 iInitialY = iconLp.y
                                 iTouchX = event.rawX
                                 iTouchY = event.rawY
+                                isDragging = false
                                 true
                             }
                             MotionEvent.ACTION_MOVE -> {
                                 val dx = (event.rawX - iTouchX).toInt()
                                 val dy = (event.rawY - iTouchY).toInt()
-                                iconLp.x = iInitialX + dx
-                                iconLp.y = iInitialY + dy
-                                try { windowManager?.updateViewLayout(iconView, iconLp) } catch (_: Exception) {}
+                                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                                    isDragging = true
+                                    iconLp.x = iInitialX + dx
+                                    iconLp.y = iInitialY + dy
+                                    try { windowManager?.updateViewLayout(iconView, iconLp) } catch (_: Exception) {}
+                                }
                                 true
+                            }
+                            MotionEvent.ACTION_UP -> {
+                                if (!isDragging) {
+                                    iconView.performClick()
+                                }
+                                false
                             }
                             else -> false
                         }
                     }
 
-                    // Restore on click
                     iconView.setOnClickListener {
                         try {
                             windowManager?.removeView(iconView)
                         } catch (_: Exception) {}
                         minimizedView = null
-                        // Recreate the large preview
                         createFloatingPreview()
-                        // Rebind camera to restore preview
                         try { bindCameraUseCases() } catch (_: Exception) {}
                     }
 
                     try {
                         windowManager?.addView(iconView, iconLp)
                         minimizedView = iconView
-                        // Rebind camera as analyzer-only (no preview)
                         try { bindCameraUseCases() } catch (_: Exception) {}
                     } catch (e: Exception) {
                         Log.w(TAG, "Failed to add minimized icon: ${e.message}")
@@ -420,9 +403,16 @@ class HandGestureService : LifecycleService() {
             floatingView = null
         }
     }
-    // 处理手部关键点检测结果
+    private fun updateGestureStatus(status: String) {
+        mainHandler.post {
+            val statusView = floatingView?.findViewById<TextView>(R.id.tv_gesture_status)
+            if (statusView != null) {
+                statusView.text = status
+            }
+        }
+    }
+
     private fun handleHandLandmarkerResult(result: HandLandmarkerResult) {
-        // Single-hand mode: filter which hand to use based on user preference
         val mode = GestureMappingManager.getSingleHandMode(this)
 
         // result.landmarks() is a list of hands; handednesses() is parallel list of categories
@@ -490,7 +480,7 @@ class HandGestureService : LifecycleService() {
             return
         }
 
-        // Passed stability and cooldown checks -> send broadcast
+        updateGestureStatus("已识别: ${gesture.name}")
         Log.i(TAG, "Broadcasting gesture: ${gesture.name}")
         val intent = Intent(ACTION_GESTURE)
         intent.putExtra(EXTRA_GESTURE, gesture.name)
@@ -499,23 +489,27 @@ class HandGestureService : LifecycleService() {
 
         lastSentGesture = gesture
         lastSentTimeMs = now
-        // reset consecutive detections to avoid immediate re-send; will require requiredConsecutiveDetections again
         consecutiveDetections = 0
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        try {
-            handLandmarker?.close()
-        } catch (e: Exception) { /* ignore */ }
+        isDestroyed = true
+        Log.d(TAG, "HandGestureService onDestroy() called")
 
         try {
-            // Unbind camera use cases to release camera resources
             cameraProvider?.unbindAll()
         } catch (e: Exception) { /* ignore */ }
 
         try {
-            cameraExecutor.shutdown()
+            cameraExecutor?.shutdown()
+            cameraExecutor?.awaitTermination(1, java.util.concurrent.TimeUnit.SECONDS)
+            cameraExecutor = null
+        } catch (e: Exception) { /* ignore */ }
+
+        try {
+            handLandmarker?.close()
+            handLandmarker = null
         } catch (e: Exception) { /* ignore */ }
 
         // Remove floating views and preview safely
