@@ -63,7 +63,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="悬浮窗已启用"
+                        android:text="悬浮窗"
                         android:textColor="@android:color/white"
                         android:textSize="17sp"
                         android:textStyle="bold" />
@@ -177,7 +177,7 @@
             android:id="@+id/btn_reset_all"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="8dp"
             android:text="重置所有手势"
             android:textColor="@color/color_text_primary"
             android:background="@drawable/bg_soft_button"
