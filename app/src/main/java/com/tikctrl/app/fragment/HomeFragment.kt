@@ -1,5 +1,6 @@
 package com.tikctrl.app.fragment
 
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -11,6 +12,7 @@ import android.widget.Spinner
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.SwitchCompat
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.tikctrl.app.GestureClassifier
 import com.tikctrl.app.GestureMappingManager
@@ -40,14 +42,22 @@ class HomeFragment : Fragment() {
                 }
                 
                 if (checked) {
-                    if (android.provider.Settings.canDrawOverlays(requireContext())) {
+                    val hasCameraPermission = ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+                    val hasOverlayPermission = android.provider.Settings.canDrawOverlays(requireContext())
+                    
+                    if (hasCameraPermission && hasOverlayPermission) {
                         activity.startHandGestureService()
                         android.widget.Toast.makeText(requireContext(), "悬浮窗已开启", android.widget.Toast.LENGTH_SHORT).show()
                     } else {
                         isChecked = false
-                        android.widget.Toast.makeText(requireContext(), "请先授予悬浮窗权限", android.widget.Toast.LENGTH_SHORT).show()
-                        val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${requireContext().packageName}"))
-                        startActivity(intent)
+                        if (!hasCameraPermission) {
+                            android.widget.Toast.makeText(requireContext(), "请先授予相机权限", android.widget.Toast.LENGTH_SHORT).show()
+                            requestPermissions(arrayOf(android.Manifest.permission.CAMERA), 1001)
+                        } else if (!hasOverlayPermission) {
+                            android.widget.Toast.makeText(requireContext(), "请先授予悬浮窗权限", android.widget.Toast.LENGTH_SHORT).show()
+                            val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${requireContext().packageName}"))
+                            startActivity(intent)
+                        }
                     }
                 } else {
                     activity.stopHandGestureService()
@@ -64,9 +74,9 @@ class HomeFragment : Fragment() {
             showHistoryDialog()
         }
 
-        // 点击 Accuracy 显示灵敏度信息
+        // 点击总识别次数显示详情
         root.findViewById<LinearLayout>(R.id.layout_accuracy).setOnClickListener {
-            showSensitivityDialog()
+            showHistoryDialog()
         }
 
         val mappingContainer = root.findViewById<LinearLayout>(R.id.home_mapping_container)
@@ -118,9 +128,9 @@ class HomeFragment : Fragment() {
         val todayCount = GestureStatistics.getTodayCount()
         root.findViewById<TextView>(R.id.tv_recognitions).text = todayCount.toString()
 
-        // 更新 Accuracy（当前灵敏度）
-        val sensitivity = GestureStatistics.calculateSensitivity()
-        root.findViewById<TextView>(R.id.tv_accuracy).text = "${sensitivity}%"
+        // 更新总识别次数
+        val totalCount = GestureStatistics.getTotalCount()
+        root.findViewById<TextView>(R.id.tv_total_count).text = totalCount.toString()
     }
 
     private fun showHistoryDialog() {
@@ -245,9 +255,10 @@ class HomeFragment : Fragment() {
         // Spinner 下拉框
         val spinner = Spinner(context, Spinner.MODE_DROPDOWN).apply {
             layoutParams = LinearLayout.LayoutParams(dp(32), dp(32))
-            adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, actionLabels).apply {
-                setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            adapter = ArrayAdapter(context, R.layout.spinner_item_dark, actionLabels).apply {
+                setDropDownViewResource(R.layout.spinner_dropdown_item_dark)
             }
+            background = ContextCompat.getDrawable(context, R.drawable.bg_spinner_dark)
             setSelection(actionList.indexOf(action).coerceAtLeast(0))
         }
 
@@ -310,5 +321,24 @@ class HomeFragment : Fragment() {
             }
         }
         return false
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1001) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                val activity = activity as? MainActivity
+                if (activity != null && android.provider.Settings.canDrawOverlays(requireContext())) {
+                    activity.startHandGestureService()
+                    view?.findViewById<SwitchCompat>(R.id.switch_visual_feedback)?.isChecked = true
+                    android.widget.Toast.makeText(requireContext(), "悬浮窗已开启", android.widget.Toast.LENGTH_SHORT).show()
+                } else {
+                    android.widget.Toast.makeText(requireContext(), "请先授予悬浮窗权限", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                android.widget.Toast.makeText(requireContext(), "相机权限被拒绝", android.widget.Toast.LENGTH_SHORT).show()
+                view?.findViewById<SwitchCompat>(R.id.switch_visual_feedback)?.isChecked = false
+            }
+        }
     }
 }

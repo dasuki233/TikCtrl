@@ -3,8 +3,11 @@ package com.tikctrl.app
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
+import androidx.core.content.ContextCompat
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -37,7 +40,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.view.MotionEvent
 import android.view.ViewGroup
-import android.content.Context
 import android.widget.FrameLayout
 import androidx.camera.core.Preview
 
@@ -60,6 +62,13 @@ class HandGestureService : LifecycleService() {
     private var minimizedView: View? = null
     private var previewView: PreviewView? = null
     private var layoutParams: WindowManager.LayoutParams? = null
+    private var minimizedLayoutParams: WindowManager.LayoutParams? = null
+    private var prefs: android.content.SharedPreferences? = null
+    private val prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == "floating_alpha") {
+            updateFloatingAlpha()
+        }
+    }
     private var cameraProvider: ProcessCameraProvider? = null
     private var currentCameraSelector: CameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -76,16 +85,54 @@ class HandGestureService : LifecycleService() {
         super.onCreate()
         Log.d(TAG, "HandGestureService onCreate() called")
         cameraExecutor = Executors.newSingleThreadExecutor()
+        prefs = getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE).also {
+            it.registerOnSharedPreferenceChangeListener(prefsListener)
+        }
         startForegroundService()
         setupHandLandmarker()
-        // Create floating preview if we have overlay permission
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || android.provider.Settings.canDrawOverlays(this)) {
-            createFloatingPreview()
+        
+        val hasCameraPermission = ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+        val hasOverlayPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || android.provider.Settings.canDrawOverlays(this)
+        
+        Log.d(TAG, "onCreate - Camera: $hasCameraPermission, Overlay: $hasOverlayPermission")
+        
+        if (hasCameraPermission) {
+            if (hasOverlayPermission) {
+                createFloatingPreview()
+            }
             startCamera()
         } else {
-            // If no overlay permission, still start camera without preview to keep detection running
-            startCamera()
+            Log.e(TAG, "Camera permission not granted! Service cannot start camera.")
+            android.widget.Toast.makeText(this, "请先授予相机权限", android.widget.Toast.LENGTH_LONG).show()
+            stopSelf()
         }
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
+        Log.d(TAG, "HandGestureService onStartCommand() called")
+        
+        if (floatingView == null) {
+            val hasCameraPermission = ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+            val hasOverlayPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || android.provider.Settings.canDrawOverlays(this)
+            
+            Log.d(TAG, "onStartCommand - Camera: $hasCameraPermission, Overlay: $hasOverlayPermission, floatingView: ${floatingView != null}")
+            
+            if (hasCameraPermission && hasOverlayPermission) {
+                createFloatingPreview()
+                mainHandler.post {
+                    try { bindCameraUseCases() } catch (e: Exception) { Log.e(TAG, "bindCameraUseCases failed: ${e.message}") }
+                }
+            } else if (!hasCameraPermission) {
+                Log.e(TAG, "Camera permission not granted!")
+                android.widget.Toast.makeText(this, "请先授予相机权限", android.widget.Toast.LENGTH_LONG).show()
+                stopSelf()
+            } else if (!hasOverlayPermission) {
+                Log.w(TAG, "Overlay permission not granted, cannot create floating preview")
+            }
+        }
+        
+        return START_STICKY
     }
 
     // 启动前台服务，显示持续运行的通知
@@ -196,6 +243,7 @@ class HandGestureService : LifecycleService() {
 
         mainHandler.post {
             provider.unbindAll()
+            Log.d(TAG, "bindCameraUseCases - floatingView=${floatingView != null}, previewView=${previewView != null}")
             if (floatingView != null && previewView != null) {
                 val preview = Preview.Builder()
                     .setTargetAspectRatio(AspectRatio.RATIO_4_3)
@@ -203,10 +251,12 @@ class HandGestureService : LifecycleService() {
                 preview.setSurfaceProvider(previewView!!.surfaceProvider)
                 try {
                     provider.bindToLifecycle(this, cameraSelector, preview, analyzer)
+                    Log.d(TAG, "bindCameraUseCases - bound preview+analyzer successfully")
                 } catch (e: Exception) {
                     Log.e(TAG, "bindToLifecycle preview+analyzer failed: ${e.message}")
                 }
             } else {
+                Log.w(TAG, "bindCameraUseCases - floatingView or previewView is null, using analyzer-only mode")
                 try {
                     provider.bindToLifecycle(this, cameraSelector, analyzer)
                 } catch (e: Exception) {
@@ -291,6 +341,10 @@ class HandGestureService : LifecycleService() {
             layoutParams!!.x = 50
             layoutParams!!.y = 200
 
+            val prefs = getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
+            val alphaPercent = prefs.getInt("floating_alpha", 70)
+            layoutParams!!.alpha = alphaPercent / 100f
+
             var initialX = 0
             var initialY = 0
             var touchX = 0f
@@ -338,6 +392,8 @@ class HandGestureService : LifecycleService() {
                     iconLp.gravity = Gravity.TOP or Gravity.START
                     iconLp.x = savedX
                     iconLp.y = savedY
+                    iconLp.alpha = alphaPercent / 100f
+                    minimizedLayoutParams = iconLp
 
                     var iInitialX = 0
                     var iInitialY = 0
@@ -398,11 +454,40 @@ class HandGestureService : LifecycleService() {
 
             windowManager?.addView(container, layoutParams)
             floatingView = container
+            previewView = container.findViewById(R.id.float_preview_view)
+            Log.d(TAG, "Floating preview created successfully, floatingView=$floatingView, previewView=$previewView")
+            
+            mainHandler.post {
+                try { bindCameraUseCases() } catch (e: Exception) { Log.e(TAG, "bindCameraUseCases after createFloatingPreview failed: ${e.message}") }
+            }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to create floating preview: ${e.message}")
+            Log.e(TAG, "Failed to create floating preview: ${e.message}", e)
             floatingView = null
+            previewView = null
         }
     }
+
+    private fun updateFloatingAlpha() {
+        val alphaPercent = prefs?.getInt("floating_alpha", 70) ?: return
+        val alphaValue = alphaPercent / 100f
+        if (layoutParams != null && floatingView != null) {
+            layoutParams!!.alpha = alphaValue
+            try {
+                windowManager?.updateViewLayout(floatingView, layoutParams)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to update floating alpha: ${e.message}")
+            }
+        }
+        if (minimizedLayoutParams != null && minimizedView != null) {
+            minimizedLayoutParams!!.alpha = alphaValue
+            try {
+                windowManager?.updateViewLayout(minimizedView, minimizedLayoutParams)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to update minimized icon alpha: ${e.message}")
+            }
+        }
+    }
+
     private fun updateGestureStatus(status: String) {
         mainHandler.post {
             val statusView = floatingView?.findViewById<TextView>(R.id.tv_gesture_status)
@@ -519,6 +604,10 @@ class HandGestureService : LifecycleService() {
 
         try {
             minimizedView?.let { windowManager?.removeViewImmediate(it) }
+        } catch (e: Exception) { /* ignore */ }
+
+        try {
+            prefs?.unregisterOnSharedPreferenceChangeListener(prefsListener)
         } catch (e: Exception) { /* ignore */ }
 
         try {

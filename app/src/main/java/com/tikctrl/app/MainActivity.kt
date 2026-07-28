@@ -47,6 +47,9 @@ class MainActivity : AppCompatActivity() {
     private val THEME_MODE_SYSTEM = 0
     private val THEME_MODE_LIGHT = 1
     private val THEME_MODE_DARK = 2
+    private val defaultThemeColorString = "#12BCA5"
+    private var currentThemeColor = Color.parseColor(defaultThemeColorString)
+    private var selectedNavIndex = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         applyThemeMode()
@@ -86,6 +89,8 @@ class MainActivity : AppCompatActivity() {
 
         activityMainBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(activityMainBinding.root)
+
+        applySavedThemeColor()
 
         val navHostFragment =
             supportFragmentManager.findFragmentById(R.id.fragment_container) as NavHostFragment
@@ -234,12 +239,8 @@ class MainActivity : AppCompatActivity() {
         val intent = Intent(this, HandGestureService::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            stopService(intent)
-            Handler(Looper.getMainLooper()).postDelayed({
-                startForegroundService(intent)
-            }, 200)
+            startForegroundService(intent)
         } else {
-            stopService(intent)
             startService(intent)
         }
         startedGestureService = true
@@ -268,11 +269,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun applyThemeColor(colorString: String) {
-        val color = Color.parseColor(colorString)
-        window.statusBarColor = color
+        currentThemeColor = Color.parseColor(colorString)
+        window.statusBarColor = currentThemeColor
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            window.navigationBarColor = color
+            window.navigationBarColor = currentThemeColor
         }
+        updateNavigationTint()
+    }
+
+    private fun applySavedThemeColor() {
+        val prefs = getSharedPreferences("gesture_prefs", MODE_PRIVATE)
+        val savedColor = prefs.getString("theme_color", defaultThemeColorString) ?: defaultThemeColorString
+        applyThemeColor(savedColor)
+    }
+
+    private fun updateNavigationTint() {
+        val navHome = findViewById<ImageView>(R.id.iv_home)
+        val navCamera = findViewById<ImageView>(R.id.iv_camera)
+        val navSettings = findViewById<ImageView>(R.id.iv_settings)
+        updateNavSelection(navHome, navCamera, navSettings, selectedNavIndex)
     }
 
     private fun setupCustomNavigation(navController: androidx.navigation.NavController) {
@@ -309,7 +324,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateNavSelection(ivHome: ImageView, ivCamera: ImageView, ivSettings: ImageView, selectedIndex: Int) {
-        val activeColor = ContextCompat.getColor(this, R.color.color_nav_active)
+        selectedNavIndex = selectedIndex
+        val activeColor = currentThemeColor
         val inactiveColor = ContextCompat.getColor(this, R.color.color_nav_inactive)
 
         ivHome.setColorFilter(if (selectedIndex == 0) activeColor else inactiveColor)
