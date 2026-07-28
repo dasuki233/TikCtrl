@@ -79,6 +79,11 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
     private var lastSentTimeMs: Long = 0
     private val gestureCooldownMs: Long = 1500 // was 1500 -> shorter cooldown for faster repeat
 
+    // FPS calculation
+    private var frameCount = 0
+    private var lastFpsCalculationTime = System.currentTimeMillis()
+    private var currentFps = 0
+
     override fun onResume() {
         super.onResume()
         // Make sure that all permissions are still present, since the
@@ -396,6 +401,8 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
                 )
 
                 fragmentCameraBinding.overlay.invalidate()
+
+                calculateAndUpdateFps()
             }
         }
 
@@ -435,6 +442,12 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
             }
             
             Log.d(TAG, "Classified gesture (UI path): $gesture")
+
+            activity?.runOnUiThread {
+                if (_fragmentCameraBinding != null) {
+                    fragmentCameraBinding.tvCurrentGesture.text = getGestureDisplayName(gesture)
+                }
+            }
 
             // 检查是否在冷却期内（1.5秒）
             val now = System.currentTimeMillis()
@@ -489,6 +502,38 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
 //                    HandLandmarkerHelper.DELEGATE_GPU, false
                 )
             }
+        }
+    }
+
+    private fun getGestureDisplayName(gesture: GestureClassifier.Gesture): String {
+        return when (gesture) {
+            GestureClassifier.Gesture.NONE -> "未检测到手势"
+            GestureClassifier.Gesture.MIDDLE_FINGER -> "点赞"
+            GestureClassifier.Gesture.PINKY_FINGER -> "取消点赞"
+            GestureClassifier.Gesture.INDEX_FINGER -> "下一个"
+            GestureClassifier.Gesture.PEACE_V -> "比耶"
+            GestureClassifier.Gesture.INDEX_MIDDLE_RING -> "手势三"
+            GestureClassifier.Gesture.INDEX_MIDDLE_RING_PINKY -> "手势四"
+            GestureClassifier.Gesture.SPIDER_MAN_SHOOTER -> "蜘蛛侠"
+            GestureClassifier.Gesture.SPIDER_SHOOTER_NO_THUMB -> "无拇指蜘蛛侠"
+            GestureClassifier.Gesture.OK -> "OK"
+            GestureClassifier.Gesture.THUMB -> "大拇指"
+            GestureClassifier.Gesture.Aki_FOX_DEVIL -> "秋的味道"
+            GestureClassifier.Gesture.SIXSIXSIX -> "666"
+        }
+    }
+
+    private fun calculateAndUpdateFps() {
+        frameCount++
+        val now = System.currentTimeMillis()
+        val elapsed = now - lastFpsCalculationTime
+
+        if (elapsed >= 1000) {
+            currentFps = (frameCount * 1000 / elapsed).toInt()
+            frameCount = 0
+            lastFpsCalculationTime = now
+
+            fragmentCameraBinding.tvFps.text = "${currentFps}\nFPS"
         }
     }
 }

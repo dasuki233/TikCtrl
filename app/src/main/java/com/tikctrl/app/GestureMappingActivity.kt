@@ -8,6 +8,7 @@ import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 
 class GestureMappingActivity : AppCompatActivity() {
     private lateinit var container: LinearLayout
@@ -17,6 +18,8 @@ class GestureMappingActivity : AppCompatActivity() {
         setContentView(R.layout.activity_gesture_mapping)
 
         container = findViewById(R.id.gesture_mappings_container)
+        initStatistics()
+
         val btnReset: Button = findViewById(R.id.btn_reset_defaults)
 
         // Build ordered list of actions for spinner (display names are localized)
@@ -57,9 +60,10 @@ class GestureMappingActivity : AppCompatActivity() {
                     visibility = android.view.View.GONE
                 }
 
-                val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, actionLabels)
-                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                val adapter = ArrayAdapter(this, R.layout.spinner_item_dark, actionLabels)
+                adapter.setDropDownViewResource(R.layout.spinner_dropdown_item_dark)
                 spinner.adapter = adapter
+                spinner.background = ContextCompat.getDrawable(this, R.drawable.bg_spinner_dark)
 
                 // Load current mapping
                 val currentAction = GestureMappingManager.getActionForGesture(this, gesture)
@@ -125,6 +129,16 @@ class GestureMappingActivity : AppCompatActivity() {
             // refresh activity
             recreate()
         }
+    }
+
+    private fun initStatistics() {
+        GestureStatistics.init(this)
+
+        val tvTodayCount = findViewById<TextView>(R.id.tv_today_count)
+        val tvTotalCount = findViewById<TextView>(R.id.tv_total_count)
+
+        tvTodayCount.text = GestureStatistics.getTodayCount().toString()
+        tvTotalCount.text = GestureStatistics.getTotalCount().toString()
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()

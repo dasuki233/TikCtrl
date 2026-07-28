@@ -1,8 +1,11 @@
 package com.tikctrl.app.fragment
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -10,8 +13,10 @@ import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.SwitchCompat
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import com.tikctrl.app.GestureActionService
 import com.tikctrl.app.GestureStatistics
 import com.tikctrl.app.MainActivity
 import com.tikctrl.app.MainViewModel
@@ -42,9 +47,6 @@ class GalleryFragment : Fragment() {
         // 初始化手势统计
         GestureStatistics.init(requireContext())
 
-        // 绑定灵敏度显示（自动计算，不可手动调整）
-        bindSensitivity(view)
-
         val prefs = requireContext().getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
 
         bindPercentSeekBar(
@@ -62,49 +64,12 @@ class GalleryFragment : Fragment() {
             (requireActivity() as? com.tikctrl.app.MainActivity)?.checkAndRequestCameraAndOverlayPermission()
         }
 
+        updatePermissionStatus(view)
+
         bindSingleHandMode(view)
 
         bindThemeMode(view)
         bindThemeColor(view)
-    }
-
-    private fun bindSensitivity(view: View) {
-        val tvSensitivity = view.findViewById<TextView>(R.id.tv_detection_value)
-        val layoutSensitivity = view.findViewById<View>(R.id.layout_sensitivity)
-
-        // 根据今日滑动次数计算灵敏度
-        val sensitivity = GestureStatistics.calculateSensitivity()
-        tvSensitivity.text = "${sensitivity}%"
-
-        // 点击显示历史记录
-        layoutSensitivity.setOnClickListener {
-            showSensitivityHistoryDialog()
-        }
-    }
-
-    private fun showSensitivityHistoryDialog() {
-        val history = GestureStatistics.getHistory(7)
-        val todayCount = GestureStatistics.getTodayCount()
-        val totalCount = GestureStatistics.getTotalCount()
-
-        val historyText = history.joinToString("\n") { (date, count) ->
-            val today = if (date == history.lastOrNull()?.first) " (Today)" else ""
-            "  $date: $count times$today"
-        }
-
-        val message = """
-            |Today's Swipes: $todayCount
-            |Total Swipes: $totalCount
-            |
-            |History (Last 7 Days):
-            |$historyText
-        """.trimMargin()
-
-        AlertDialog.Builder(requireContext())
-            .setTitle("Sensitivity History")
-            .setMessage(message)
-            .setPositiveButton("OK", null)
-            .show()
     }
 
     private fun bindThemeMode(view: View) {
@@ -182,14 +147,14 @@ class GalleryFragment : Fragment() {
         updateSingleHandModeText(tvSingleHandMode, currentMode)
 
         tvSingleHandMode.setOnClickListener {
-            val modes = arrayOf("Both", "Left", "Right")
+            val modes = arrayOf("双手", "左手", "右手")
             val currentIndex = when (currentMode) {
                 com.tikctrl.app.GestureMappingManager.SingleHandMode.BOTH -> 0
                 com.tikctrl.app.GestureMappingManager.SingleHandMode.LEFT -> 1
                 com.tikctrl.app.GestureMappingManager.SingleHandMode.RIGHT -> 2
             }
             AlertDialog.Builder(requireContext())
-                .setTitle("Single Hand Mode")
+                .setTitle("单手识别模式")
                 .setSingleChoiceItems(modes, currentIndex) { dialog, which ->
                     val mode = when (which) {
                         1 -> com.tikctrl.app.GestureMappingManager.SingleHandMode.LEFT
@@ -206,11 +171,11 @@ class GalleryFragment : Fragment() {
 
     private fun updateSingleHandModeText(textView: TextView, mode: com.tikctrl.app.GestureMappingManager.SingleHandMode) {
         val modeName = when (mode) {
-            com.tikctrl.app.GestureMappingManager.SingleHandMode.BOTH -> "Both"
-            com.tikctrl.app.GestureMappingManager.SingleHandMode.LEFT -> "Left"
-            com.tikctrl.app.GestureMappingManager.SingleHandMode.RIGHT -> "Right"
+            com.tikctrl.app.GestureMappingManager.SingleHandMode.BOTH -> "双手"
+            com.tikctrl.app.GestureMappingManager.SingleHandMode.LEFT -> "左手"
+            com.tikctrl.app.GestureMappingManager.SingleHandMode.RIGHT -> "右手"
         }
-        textView.text = "Single Hand Mode                            $modeName  >"
+        textView.text = "单手识别模式                            $modeName  >"
     }
 
     private fun bindPercentSeekBar(
@@ -244,6 +209,40 @@ class GalleryFragment : Fragment() {
         switch.setOnCheckedChangeListener { _, checked ->
             prefs.edit().putBoolean(key, checked).apply()
         }
+    }
+
+    private fun updatePermissionStatus(view: View) {
+        val cameraStatus = view.findViewById<TextView>(R.id.tv_camera_status)
+        val overlayStatus = view.findViewById<TextView>(R.id.tv_overlay_status)
+        val accessibilityStatus = view.findViewById<TextView>(R.id.tv_accessibility_status)
+
+        val context = requireContext()
+
+        val cameraGranted = ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        updateStatusText(cameraStatus, cameraGranted)
+
+        val overlayGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(context)
+        updateStatusText(overlayStatus, overlayGranted)
+
+        val expectedComponent = ComponentName(context, GestureActionService::class.java)
+        val enabledServices = Settings.Secure.getString(context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+        val accessibilityEnabled = !enabledServices.isNullOrEmpty() && enabledServices.contains(expectedComponent.flattenToString())
+        updateStatusText(accessibilityStatus, accessibilityEnabled)
+    }
+
+    private fun updateStatusText(textView: TextView, isGranted: Boolean) {
+        if (isGranted) {
+            textView.text = "已开启"
+            textView.setTextColor(requireContext().getColor(R.color.color_success))
+        } else {
+            textView.text = "未开启"
+            textView.setTextColor(requireContext().getColor(R.color.color_error))
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        view?.let { updatePermissionStatus(it) }
     }
 
 }

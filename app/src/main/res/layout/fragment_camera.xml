@@ -78,95 +78,18 @@
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="126dp"
-                android:layout_marginTop="18dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
                 android:background="@drawable/bg_card"
                 android:elevation="2dp"
                 android:orientation="vertical"
                 android:padding="18dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Current Gesture"
-                    android:textColor="@color/color_text_primary"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="0dp"
-                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
                     android:gravity="center_vertical"
                     android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="64dp"
-                        android:layout_height="match_parent"
-                        android:gravity="center"
-                        android:text="LIKE"
-                        android:textColor="@color/color_primary"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:id="@+id/tv_current_gesture"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="Thumb gesture"
-                            android:textColor="@color/color_text_primary"
-                            android:textSize="17sp"
-                            android:textStyle="bold" />
-
-                        <TextView
-                            android:id="@+id/tv_current_confidence"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="Confidence  92%"
-                            android:textColor="@color/color_text_secondary"
-                            android:textSize="13sp" />
-
-                        <FrameLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="6dp"
-                            android:layout_marginTop="10dp">
-
-                            <View
-                                android:layout_width="match_parent"
-                                android:layout_height="6dp"
-                                android:background="@drawable/bg_progress_track" />
-
-                            <View
-                                android:layout_width="220dp"
-                                android:layout_height="6dp"
-                                android:background="@drawable/bg_progress_fill" />
-                        </FrameLayout>
-                    </LinearLayout>
-                </LinearLayout>
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="78dp"
-                android:layout_marginTop="16dp"
-                android:background="@drawable/bg_card"
-                android:elevation="2dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingHorizontal="18dp">
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -177,73 +100,35 @@
                         android:textStyle="bold" />
 
                     <TextView
-                        android:id="@+id/tv_pending_action"
-                        android:layout_width="wrap_content"
+                        android:id="@+id/tv_current_gesture"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="Like"
+                        android:layout_marginStart="12dp"
+                        android:layout_weight="1"
+                        android:text="未检测到手势"
                         android:textColor="@color/color_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
                 </LinearLayout>
 
-                <TextView
-                    android:layout_width="38dp"
-                    android:layout_height="38dp"
-                    android:gravity="center"
-                    android:text="Like"
-                    android:textColor="@color/color_text_hint"
-                    android:textSize="30sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="70dp"
-                android:layout_marginTop="16dp"
-                android:background="@drawable/bg_card"
-                android:elevation="2dp"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:layout_marginTop="16dp"
                     android:gravity="center"
-                    android:text="39&#10;FPS"
-                    android:textColor="@color/color_text_primary"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
+                    android:orientation="horizontal">
 
-                <View
-                    android:layout_width="1dp"
-                    android:layout_height="34dp"
-                    android:background="@color/color_border" />
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:text="128&#10;Today"
-                    android:textColor="@color/color_text_primary"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-
-                <View
-                    android:layout_width="1dp"
-                    android:layout_height="34dp"
-                    android:background="@color/color_border" />
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="center"
-                    android:text="89%&#10;Average"
-                    android:textColor="@color/color_text_primary"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
+                    <TextView
+                        android:id="@+id/tv_fps"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:text="0&#10;FPS"
+                        android:textColor="@color/color_text_primary"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
     </ScrollView>

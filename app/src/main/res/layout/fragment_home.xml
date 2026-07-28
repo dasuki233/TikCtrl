@@ -131,10 +131,10 @@
                     android:orientation="vertical">
 
                     <TextView
-                        android:id="@+id/tv_accuracy"
+                        android:id="@+id/tv_total_count"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="89%"
+                        android:text="1,234"
                         android:textColor="@android:color/white"
                         android:textSize="22sp"
                         android:textStyle="bold" />
@@ -142,7 +142,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="平均识别率"
+                        android:text="总识别次数"
                         android:textColor="#E8FFFFFF"
                         android:textSize="13sp" />
                 </LinearLayout>
