@@ -16,6 +16,7 @@
 package com.tikctrl.app.fragment
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.res.Configuration
 import android.os.Bundle
 import android.util.Log
@@ -312,6 +313,11 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
 
     // Initialize CameraX, and prepare to bind the camera use cases
     private fun setUpCamera() {
+        // 读取设置
+        val prefs = requireContext().getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
+        val useFrontCamera = prefs.getBoolean("front_camera", true)
+        cameraFacing = if (useFrontCamera) CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
+        
         val cameraProviderFuture =
             ProcessCameraProvider.getInstance(requireContext())
         cameraProviderFuture.addListener(
@@ -321,8 +327,35 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
 
                 // Build and bind the camera use cases
                 bindCameraUseCases()
+                
+                // 应用镜像设置
+                applyPreviewMirror()
             }, ContextCompat.getMainExecutor(requireContext())
         )
+    }
+
+    private fun applyPreviewMirror() {
+        val prefs = requireContext().getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
+        val mirrorMode = prefs.getBoolean("mirror_mode", true)
+        val isFront = cameraFacing == CameraSelector.LENS_FACING_FRONT
+        
+        fragmentCameraBinding.viewFinder.post {
+            try {
+                val textureView = fragmentCameraBinding.viewFinder.getChildAt(0) as? android.view.TextureView
+                if (textureView != null) {
+                    val matrix = android.graphics.Matrix()
+                    if (isFront && mirrorMode) {
+                        // 水平翻转以实现镜像效果
+                        val centerX = textureView.width / 2f
+                        val centerY = textureView.height / 2f
+                        matrix.setScale(-1f, 1f, centerX, centerY)
+                    }
+                    textureView.setTransform(matrix)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to apply preview mirror: ${e.message}")
+            }
+        }
     }
 
     // Declare and bind preview, capture and analysis use cases
@@ -507,19 +540,19 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
 
     private fun getGestureDisplayName(gesture: GestureClassifier.Gesture): String {
         return when (gesture) {
-            GestureClassifier.Gesture.NONE -> "未检测到手势"
-            GestureClassifier.Gesture.MIDDLE_FINGER -> "点赞"
-            GestureClassifier.Gesture.PINKY_FINGER -> "取消点赞"
-            GestureClassifier.Gesture.INDEX_FINGER -> "下一个"
-            GestureClassifier.Gesture.PEACE_V -> "比耶"
-            GestureClassifier.Gesture.INDEX_MIDDLE_RING -> "手势三"
-            GestureClassifier.Gesture.INDEX_MIDDLE_RING_PINKY -> "手势四"
-            GestureClassifier.Gesture.SPIDER_MAN_SHOOTER -> "蜘蛛侠"
-            GestureClassifier.Gesture.SPIDER_SHOOTER_NO_THUMB -> "无拇指蜘蛛侠"
-            GestureClassifier.Gesture.OK -> "OK"
-            GestureClassifier.Gesture.THUMB -> "大拇指"
-            GestureClassifier.Gesture.Aki_FOX_DEVIL -> "秋的味道"
-            GestureClassifier.Gesture.SIXSIXSIX -> "666"
+            GestureClassifier.Gesture.NONE -> getString(R.string.gesture_none)
+            GestureClassifier.Gesture.MIDDLE_FINGER -> getString(R.string.gesture_middle_finger)
+            GestureClassifier.Gesture.PINKY_FINGER -> getString(R.string.gesture_pinky_finger)
+            GestureClassifier.Gesture.INDEX_FINGER -> getString(R.string.gesture_index_finger)
+            GestureClassifier.Gesture.PEACE_V -> getString(R.string.gesture_peace_v)
+            GestureClassifier.Gesture.INDEX_MIDDLE_RING -> getString(R.string.gesture_index_middle_ring)
+            GestureClassifier.Gesture.INDEX_MIDDLE_RING_PINKY -> getString(R.string.gesture_index_middle_ring_pinky)
+            GestureClassifier.Gesture.SPIDER_MAN_SHOOTER -> getString(R.string.gesture_spider_man_shooter)
+            GestureClassifier.Gesture.SPIDER_SHOOTER_NO_THUMB -> getString(R.string.gesture_spider_shooter_no_thumb)
+            GestureClassifier.Gesture.OK -> getString(R.string.gesture_ok)
+            GestureClassifier.Gesture.THUMB -> getString(R.string.gesture_thumb)
+            GestureClassifier.Gesture.Aki_FOX_DEVIL -> getString(R.string.gesture_fox)
+            GestureClassifier.Gesture.SIXSIXSIX -> getString(R.string.gesture_sixsixsix)
         }
     }
 

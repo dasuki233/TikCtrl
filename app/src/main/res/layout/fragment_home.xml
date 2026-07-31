@@ -24,7 +24,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="手势映射助手"
+                android:text="@string/home_title"
                 android:textColor="@color/color_text_primary"
                 android:textSize="24sp"
                 android:textStyle="bold" />
@@ -63,7 +63,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="悬浮窗"
+                        android:text="@string/home_floating_window"
                         android:textColor="@android:color/white"
                         android:textSize="17sp"
                         android:textStyle="bold" />
@@ -72,7 +72,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="7dp"
-                        android:text="实时识别手势并执行映射操作"
+                        android:text="@string/home_floating_desc"
                         android:textColor="#DFFFFFFF"
                         android:textSize="13sp" />
                 </LinearLayout>
@@ -115,7 +115,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="今日识别次数"
+                        android:text="@string/home_today_count"
                         android:textColor="#E8FFFFFF"
                         android:textSize="13sp" />
                 </LinearLayout>
@@ -142,7 +142,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="总识别次数"
+                        android:text="@string/home_total_count"
                         android:textColor="#E8FFFFFF"
                         android:textSize="13sp" />
                 </LinearLayout>
@@ -160,7 +160,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="我的手势映射"
+                android:text="@string/home_my_mappings"
                 android:textColor="@color/color_text_primary"
                 android:textSize="17sp"
                 android:textStyle="bold" />
@@ -178,7 +178,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="重置所有手势"
+            android:text="@string/home_reset_all"
             android:textColor="@color/color_text_primary"
             android:background="@drawable/bg_soft_button"
             android:textSize="14sp" />

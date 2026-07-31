@@ -1,4 +1,4 @@
-﻿﻿<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="color_primary">#12BCA5</color>
     <color name="color_primary_dark">#079A88</color>
@@ -10,6 +10,14 @@
     <color name="color_background">#0A0A0A</color>
     <color name="color_background_surface">#1A1A1A</color>
     <color name="color_background_card">#1E1E1E</color>
+    <color name="color_app_bg_start">#050608</color>
+    <color name="color_app_bg_end">#0A0A0A</color>
+    <color name="color_progress_track">#2A2A2A</color>
+    <color name="color_float_window">#E8141414</color>
+    <color name="color_float_button">#26FFFFFF</color>
+    <color name="color_float_button_active">#40FFFFFF</color>
+    <color name="color_metric_tile">#35FFFFFF</color>
+    <color name="color_swatch_stroke">#12BCA5</color>
     <color name="color_text_primary">#FFFFFF</color>
     <color name="color_text_secondary">#A0A0A0</color>
     <color name="color_text_hint">#606060</color>

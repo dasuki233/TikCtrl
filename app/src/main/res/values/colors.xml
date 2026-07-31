@@ -10,6 +10,14 @@
     <color name="color_background">#F6F8FB</color>
     <color name="color_background_surface">#FFFFFF</color>
     <color name="color_background_card">#FFFFFF</color>
+    <color name="color_app_bg_start">#F2F6FA</color>
+    <color name="color_app_bg_end">#FFFFFF</color>
+    <color name="color_progress_track">#EAF0F5</color>
+    <color name="color_float_window">#E8FFFFFF</color>
+    <color name="color_float_button">#26FFFFFF</color>
+    <color name="color_float_button_active">#40FFFFFF</color>
+    <color name="color_metric_tile">#35FFFFFF</color>
+    <color name="color_swatch_stroke">#DFF8F4</color>
     <color name="color_text_primary">#172033</color>
     <color name="color_text_secondary">#647082</color>
     <color name="color_text_hint">#98A2B3</color>

@@ -80,6 +80,7 @@ class HandGestureService : LifecycleService() {
     private var lastSentGesture: GestureClassifier.Gesture? = null
     private var lastSentTimeMs: Long = 0
     private val gestureCooldownMs: Long = 1500  // 发送广播冷却
+    private var isCreatingFloatingPreview = false
 
     override fun onCreate() {
         super.onCreate()
@@ -103,7 +104,7 @@ class HandGestureService : LifecycleService() {
             startCamera()
         } else {
             Log.e(TAG, "Camera permission not granted! Service cannot start camera.")
-            android.widget.Toast.makeText(this, "请先授予相机权限", android.widget.Toast.LENGTH_LONG).show()
+            android.widget.Toast.makeText(this, getString(R.string.permission_camera_required), android.widget.Toast.LENGTH_LONG).show()
             stopSelf()
         }
     }
@@ -121,11 +122,14 @@ class HandGestureService : LifecycleService() {
             if (hasCameraPermission && hasOverlayPermission) {
                 createFloatingPreview()
                 mainHandler.post {
-                    try { bindCameraUseCases() } catch (e: Exception) { Log.e(TAG, "bindCameraUseCases failed: ${e.message}") }
+                    try { 
+                        bindCameraUseCases()
+                        applyFloatingPreviewMirror()
+                    } catch (e: Exception) { Log.e(TAG, "bindCameraUseCases failed: ${e.message}") }
                 }
             } else if (!hasCameraPermission) {
                 Log.e(TAG, "Camera permission not granted!")
-                android.widget.Toast.makeText(this, "请先授予相机权限", android.widget.Toast.LENGTH_LONG).show()
+                android.widget.Toast.makeText(this, getString(R.string.permission_camera_required), android.widget.Toast.LENGTH_LONG).show()
                 stopSelf()
             } else if (!hasOverlayPermission) {
                 Log.w(TAG, "Overlay permission not granted, cannot create floating preview")
@@ -162,9 +166,8 @@ class HandGestureService : LifecycleService() {
         try {
             // 初始化手势统计
             GestureStatistics.init(this)
-            // 根据滑动次数计算灵敏度 (范围 40-100，转换为 0.4-1.0)
-            val sensitivity = GestureStatistics.calculateSensitivity()
-            val minConfidence = sensitivity / 100f
+            // 固定检测置信度阈值
+            val minConfidence = 0.7f
 
             val baseOptions = BaseOptions.builder()
                 .setDelegate(Delegate.CPU)  // 使用CPU推理
@@ -174,8 +177,8 @@ class HandGestureService : LifecycleService() {
             // 手部关键点检测器选项
             val options = HandLandmarker.HandLandmarkerOptions.builder()
                 .setBaseOptions(baseOptions)    // 设置基础配置
-                .setNumHands(2) // 检测最多1只手
-                .setMinHandDetectionConfidence(minConfidence) // 动态灵敏度
+                .setNumHands(2) // 检测最多2只手
+                .setMinHandDetectionConfidence(minConfidence)
                 .setRunningMode(RunningMode.LIVE_STREAM)    // 实时流模式
                 .setResultListener { result: HandLandmarkerResult, _: com.google.mediapipe.framework.image.MPImage ->
                     handleHandLandmarkerResult(result)  // 结果回调处理
@@ -184,7 +187,7 @@ class HandGestureService : LifecycleService() {
 
             // 创建手部关键点检测器实例
             handLandmarker = HandLandmarker.createFromOptions(this, options)
-            Log.d(TAG, "HandLandmarker initialized with sensitivity: $sensitivity% (minConfidence: $minConfidence)")
+            Log.d(TAG, "HandLandmarker initialized with minConfidence: $minConfidence")
         } catch (e: Exception) {
             Log.e(TAG, "HandLandmarker init failed: ${e.message}")
         }
@@ -192,6 +195,10 @@ class HandGestureService : LifecycleService() {
 
     // 启动相机
     private fun startCamera() {
+        // 读取前置摄像头设置
+        val useFrontCamera = prefs?.getBoolean("front_camera", true) ?: true
+        currentCameraSelector = if (useFrontCamera) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
+        
         val cameraProviderFuture: ListenableFuture<ProcessCameraProvider> = ProcessCameraProvider.getInstance(this)
         cameraProviderFuture.addListener({
             cameraProvider = cameraProviderFuture.get()
@@ -200,12 +207,37 @@ class HandGestureService : LifecycleService() {
             mainHandler.post {
                 try {
                     bindCameraUseCases()
+                    applyFloatingPreviewMirror()
                 } catch (e: Exception) {
                     Log.e(TAG, "Camera bind failed: ${e.message}")
                 }
             }
 
         }, cameraExecutor!!)
+    }
+    
+    private fun applyFloatingPreviewMirror() {
+        val mirrorMode = prefs?.getBoolean("mirror_mode", true) ?: true
+        val isFront = currentCameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA
+        
+        if (floatingView != null && previewView != null) {
+            previewView!!.post {
+                try {
+                    val textureView = previewView!!.getChildAt(0) as? android.view.TextureView
+                    if (textureView != null) {
+                        val matrix = android.graphics.Matrix()
+                        if (isFront && mirrorMode) {
+                            val centerX = textureView.width / 2f
+                            val centerY = textureView.height / 2f
+                            matrix.setScale(-1f, 1f, centerX, centerY)
+                        }
+                        textureView.setTransform(matrix)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to apply floating preview mirror: ${e.message}")
+                }
+            }
+        }
     }
 
     // Bind Preview and Analysis according to currentCameraSelector and previewView availability
@@ -277,10 +309,19 @@ class HandGestureService : LifecycleService() {
     }
 
     private fun createFloatingPreview() {
+        // 防止重复创建悬浮窗
+        if (floatingView != null || minimizedView != null || isCreatingFloatingPreview) {
+            Log.d(TAG, "createFloatingPreview skipped: floatingView=${floatingView != null}, minimizedView=${minimizedView != null}, isCreating=$isCreatingFloatingPreview")
+            return
+        }
+        
+        isCreatingFloatingPreview = true
+        var container: FrameLayout? = null
+        
         try {
             windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
             val inflater = LayoutInflater.from(this)
-            val container = inflater.inflate(R.layout.float_preview, null) as FrameLayout
+            container = inflater.inflate(R.layout.float_preview, null) as FrameLayout
 
             previewView = container.findViewById(R.id.float_preview_view)
 
@@ -323,7 +364,12 @@ class HandGestureService : LifecycleService() {
                 }
                 GestureMappingManager.setSingleHandMode(this, next)
                 updateSingleHandIcon()
-                android.widget.Toast.makeText(this, "单手模式: ${next.name}", android.widget.Toast.LENGTH_SHORT).show()
+                val modeName = when (next) {
+                    com.tikctrl.app.GestureMappingManager.SingleHandMode.BOTH -> getString(R.string.floating_single_hand_both)
+                    com.tikctrl.app.GestureMappingManager.SingleHandMode.LEFT -> getString(R.string.floating_single_hand_left)
+                    com.tikctrl.app.GestureMappingManager.SingleHandMode.RIGHT -> getString(R.string.floating_single_hand_right)
+                }
+                android.widget.Toast.makeText(this, modeName, android.widget.Toast.LENGTH_SHORT).show()
             }
 
             val minimizeBtn = container.findViewById<ImageButton>(R.id.btn_minimize)
@@ -364,7 +410,7 @@ class HandGestureService : LifecycleService() {
                         layoutParams!!.x = initialX + dx
                         layoutParams!!.y = initialY + dy
                         try {
-                            windowManager?.updateViewLayout(container, layoutParams)
+                            windowManager?.updateViewLayout(container!!, layoutParams)
                         } catch (_: Exception) {}
                         true
                     }
@@ -376,7 +422,7 @@ class HandGestureService : LifecycleService() {
                 try {
                     val savedX = layoutParams!!.x
                     val savedY = layoutParams!!.y
-                    windowManager?.removeView(container)
+                    windowManager?.removeView(container!!)
                     floatingView = null
                     previewView = null
 
@@ -437,7 +483,10 @@ class HandGestureService : LifecycleService() {
                         } catch (_: Exception) {}
                         minimizedView = null
                         createFloatingPreview()
-                        try { bindCameraUseCases() } catch (_: Exception) {}
+                        try { 
+                            bindCameraUseCases()
+                            applyFloatingPreviewMirror()
+                        } catch (_: Exception) {}
                     }
 
                     try {
@@ -452,18 +501,27 @@ class HandGestureService : LifecycleService() {
                 }
             }
 
-            windowManager?.addView(container, layoutParams)
+            windowManager?.addView(container!!, layoutParams)
             floatingView = container
-            previewView = container.findViewById(R.id.float_preview_view)
+            previewView = container?.findViewById(R.id.float_preview_view)
+            isCreatingFloatingPreview = false
             Log.d(TAG, "Floating preview created successfully, floatingView=$floatingView, previewView=$previewView")
             
             mainHandler.post {
-                try { bindCameraUseCases() } catch (e: Exception) { Log.e(TAG, "bindCameraUseCases after createFloatingPreview failed: ${e.message}") }
+                try { 
+                    bindCameraUseCases()
+                    applyFloatingPreviewMirror()
+                } catch (e: Exception) { Log.e(TAG, "bindCameraUseCases after createFloatingPreview failed: ${e.message}") }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create floating preview: ${e.message}", e)
+            // 如果悬浮窗已经添加，需要移除
+            try {
+                container?.let { windowManager?.removeViewImmediate(it) }
+            } catch (_: Exception) {}
             floatingView = null
             previewView = null
+            isCreatingFloatingPreview = false
         }
     }
 
@@ -626,6 +684,7 @@ class HandGestureService : LifecycleService() {
         layoutParams = null
         cameraProvider = null
         windowManager = null
+        isCreatingFloatingPreview = false
 
         try {
             stopForeground(true)

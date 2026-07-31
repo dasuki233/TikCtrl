@@ -71,7 +71,7 @@
             android:id="@+id/tv_gesture_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="等待手势..."
+            android:text="@string/preview_no_gesture"
             android:textColor="#FFFFFF"
             android:textSize="14sp"
             android:background="#40000000"

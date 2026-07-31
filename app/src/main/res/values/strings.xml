@@ -7,23 +7,109 @@
     <string name="alt_bottom_sheet_max_results_button_plus">Increase maximum hand results</string>
     <string name="alt_bottom_sheet_threshold_button_minus">Decrease threshold</string>
     <string name="alt_bottom_sheet_threshold_button_plus">Increase threshold</string>
-    <string name="menu_mapping">映射</string>
-    <string name="menu_preview">预览</string>
-    <string name="menu_settings">设置</string>
+
+    <!-- Navigation -->
+    <string name="menu_mapping">Mapping</string>
+    <string name="menu_preview">Preview</string>
+    <string name="menu_settings">Settings</string>
     <string name="menu_camera">Preview</string>
     <string name="menu_gallery">Settings</string>
-    <string name="tv_gallery_placeholder">Tap + to add an image or video.</string>
-    <string name="label_inference_time">Inference Time</string>
-    <string name="label_fps">FPS</string>
-    <string name="label_hand_detection_confidence_threshold">Detection Threshold</string>
-    <string name="label_hand_tracking_confidence_threshold">Tracking Threshold</string>
-    <string name="label_hand_presence_confidence_threshold">Presence Threshold</string>
-    <string name="label_num_hands">Number of Hands</string>
-    <string name="label_delegate">Delegate</string>
-    <string-array name="delegate_spinner_titles">
-        <item>CPU</item>
-        <item>GPU</item>
-    </string-array>
+
+    <!-- General status -->
+    <string name="status_not_granted">Not granted</string>
+    <string name="status_granted">Granted</string>
+
+    <!-- Gallery / Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_recognition_mode">Recognition Mode</string>
+    <string name="settings_mirror_mode">Mirror Mode</string>
+    <string name="settings_mirror_desc">Mirror front camera</string>
+    <string name="settings_use_front_camera">Use Front Camera</string>
+    <string name="settings_single_hand_mode">Single Hand Mode</string>
+    <string name="settings_single_hand_mode_label">Single Hand Mode</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme_mode">Theme Mode</string>
+    <string name="settings_theme_mode_label">Theme Mode</string>
+    <string name="settings_theme_color">Theme Color</string>
+    <string name="settings_floating_alpha">Floating Window Opacity</string>
+    <string name="settings_others">Others</string>
+    <string name="settings_check_permissions">Check Permissions</string>
+    <string name="settings_check_permissions_label">Check Permissions</string>
+    <string name="settings_camera_permission">Camera Permission</string>
+    <string name="settings_overlay_permission">Overlay Permission</string>
+    <string name="settings_accessibility_service">Accessibility Service</string>
+    <string name="settings_feedback">Feedback</string>
+    <string name="settings_about">About Us</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_chinese">中文</string>
+    <string name="settings_english">English</string>
+
+    <!-- Theme mode -->
+    <string name="theme_system">Follow System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+
+    <!-- Single hand mode -->
+    <string name="single_hand_both">Both</string>
+    <string name="single_hand_left">Left</string>
+    <string name="single_hand_right">Right</string>
+    <string name="single_hand_mode_title">Single Hand Mode</string>
+
+    <!-- Camera / Preview -->
+    <string name="preview_title">Live Preview</string>
+    <string name="preview_recognizing">REC  Recognizing</string>
+    <string name="preview_current_gesture">Current Gesture</string>
+    <string name="preview_no_gesture">No gesture detected</string>
+    <string name="preview_fps_zero">0\nFPS</string>
+    <string name="preview_fps_format">%d\nFPS</string>
+
+    <!-- Home -->
+    <string name="home_title">Gesture Mapping Assistant</string>
+    <string name="home_floating_window">Floating Window</string>
+    <string name="home_floating_desc">Recognize gestures in real time and execute mapped actions</string>
+    <string name="home_today_count">Today\u2019s Count</string>
+    <string name="home_total_count">Total Count</string>
+    <string name="home_my_mappings">My Mappings</string>
+    <string name="home_reset_all">Reset All Gestures</string>
+
+    <!-- Gesture Mapping -->
+    <string name="mapping_title">Gesture Mapping Assistant</string>
+    <string name="mapping_today_count">Today\u2019s Count</string>
+    <string name="mapping_total_count">Total Count</string>
+    <string name="mapping_gesture_actions">Gesture Actions</string>
+    <string name="mapping_reset_defaults">Reset Defaults</string>
+
+    <!-- Gesture names (English) -->
+    <string name="gesture_none">No gesture detected</string>
+    <string name="gesture_middle_finger">Like</string>
+    <string name="gesture_pinky_finger">Unlike</string>
+    <string name="gesture_index_finger">Next</string>
+    <string name="gesture_peace_v">Peace Sign</string>
+    <string name="gesture_index_middle_ring">Three Fingers</string>
+    <string name="gesture_index_middle_ring_pinky">Four Fingers</string>
+    <string name="gesture_spider_man_shooter">Spiderman</string>
+    <string name="gesture_spider_shooter_no_thumb">Spiderman (No Thumb)</string>
+    <string name="gesture_ok">OK</string>
+    <string name="gesture_thumb">Thumb Up</string>
+    <string name="gesture_fox">Fox</string>
+    <string name="gesture_aki_fox_devil">Fox</string>
+    <string name="gesture_sixsixsix">666</string>
+
+    <!-- Original gesture names kept for backward compat -->
+    <string name="gesture_middle_finger_alt">Middle finger</string>
+    <string name="gesture_pinky_finger_alt">Pinky</string>
+    <string name="gesture_index_finger_alt">Index finger</string>
+    <string name="gesture_peace_v_alt">Peace</string>
+    <string name="gesture_index_middle_ring_alt">Three fingers</string>
+    <string name="gesture_index_middle_ring_pinky_alt">Four fingers</string>
+    <string name="gesture_spider_man_shooter_alt">Rock</string>
+    <string name="gesture_spider_shooter_no_thumb_alt">Rock no thumb</string>
+    <string name="gesture_ok_alt">OK</string>
+    <string name="gesture_thumb_alt">Thumb</string>
+    <string name="gesture_aki_fox_devil_alt">Fox</string>
+    <string name="gesture_sixsixsix_alt">666</string>
+
+    <!-- Gesture actions -->
     <string name="action_none">None</string>
     <string name="action_next">Next</string>
     <string name="action_prev">Previous</string>
@@ -38,16 +124,38 @@
     <string name="action_back">Back</string>
     <string name="action_user_avatar">Profile</string>
     <string name="action_custom">Custom</string>
-    <string name="gesture_middle_finger">Middle finger</string>
-    <string name="gesture_pinky_finger">Pinky</string>
-    <string name="gesture_index_finger">Index finger</string>
-    <string name="gesture_peace_v">Peace</string>
-    <string name="gesture_index_middle_ring">Three fingers</string>
-    <string name="gesture_index_middle_ring_pinky">Four fingers</string>
-    <string name="gesture_spider_man_shooter">Rock</string>
-    <string name="gesture_spider_shooter_no_thumb">Rock no thumb</string>
-    <string name="gesture_ok">OK</string>
-    <string name="gesture_thumb">Thumb</string>
-    <string name="gesture_aki_fox_devil">Fox</string>
-    <string name="gesture_sixsixsix">666</string>
+
+    <!-- Bottom sheet -->
+    <string name="label_inference_time">Inference Time</string>
+    <string name="label_fps">FPS</string>
+    <string name="label_hand_detection_confidence_threshold">Detection Threshold</string>
+    <string name="label_hand_tracking_confidence_threshold">Tracking Threshold</string>
+    <string name="label_hand_presence_confidence_threshold">Presence Threshold</string>
+    <string name="label_num_hands">Number of Hands</string>
+    <string name="label_delegate">Delegate</string>
+    <string-array name="delegate_spinner_titles">
+        <item>CPU</item>
+        <item>GPU</item>
+    </string-array>
+
+    <!-- Floating window -->
+    <string name="floating_title">Floating Window</string>
+    <string name="floating_description">Real-time gesture recognition and action mapping</string>
+    <string name="floating_close">Close</string>
+    <string name="floating_minimize">Minimize</string>
+    <string name="floating_switch_camera">Switch Camera</string>
+    <string name="floating_single_hand_both">Both mode</string>
+    <string name="floating_single_hand_left">Left hand only</string>
+    <string name="floating_single_hand_right">Right hand only</string>
+
+    <!-- Dialog titles -->
+    <string name="dialog_theme_title">Theme Mode</string>
+    <string name="dialog_single_hand_title">Single Hand Mode</string>
+
+    <!-- Permission request messages -->
+    <string name="permission_camera_required">Camera permission is required to start the service</string>
+    <string name="permission_overlay_required">Overlay permission not granted</string>
+
+    <!-- Placeholders -->
+    <string name="tv_gallery_placeholder">Tap + to add an image or video.</string>
 </resources>

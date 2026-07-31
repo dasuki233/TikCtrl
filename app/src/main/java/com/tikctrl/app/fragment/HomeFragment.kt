@@ -181,23 +181,6 @@ class HomeFragment : Fragment() {
             .show()
     }
 
-    private fun showSensitivityDialog() {
-        val sensitivity = GestureStatistics.calculateSensitivity()
-        val todayCount = GestureStatistics.getTodayCount()
-
-        // 使用自定义布局
-        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_sensitivity, null)
-        
-        dialogView.findViewById<TextView>(R.id.tv_sensitivity_value).text = "${sensitivity}%"
-        dialogView.findViewById<TextView>(R.id.tv_today_swipes).text = todayCount.toString()
-
-        AlertDialog.Builder(requireContext())
-            .setView(dialogView)
-            .setPositiveButton("OK", null)
-            .create()
-            .show()
-    }
-
     private fun createMappingRow(gesture: GestureClassifier.Gesture): View {
         val context = requireContext()
         val action = GestureMappingManager.getActionForGesture(context, gesture)

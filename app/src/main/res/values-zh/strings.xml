@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TikCtrl</string>
+    <string name="media_pipe">MediaPipe</string>
+    <string name="alt_bottom_sheet_chevron">底部抽屉展开指示器</string>
+    <string name="alt_bottom_sheet_max_results_button_minus">减少最大手指数</string>
+    <string name="alt_bottom_sheet_max_results_button_plus">增加最大手指数</string>
+    <string name="alt_bottom_sheet_threshold_button_minus">降低阈值</string>
+    <string name="alt_bottom_sheet_threshold_button_plus">提高阈值</string>
+
+    <!-- Navigation -->
+    <string name="menu_mapping">映射</string>
+    <string name="menu_preview">预览</string>
+    <string name="menu_settings">设置</string>
+    <string name="menu_camera">预览</string>
+    <string name="menu_gallery">设置</string>
+
+    <!-- General status -->
+    <string name="status_not_granted">未开启</string>
+    <string name="status_granted">已开启</string>
+
+    <!-- Gallery / Settings -->
+    <string name="settings_title">设置</string>
+    <string name="settings_recognition_mode">识别模式</string>
+    <string name="settings_mirror_mode">镜像模式</string>
+    <string name="settings_mirror_desc">前置摄像头镜像翻转</string>
+    <string name="settings_use_front_camera">使用前置摄像头</string>
+    <string name="settings_single_hand_mode">单手识别模式</string>
+    <string name="settings_single_hand_mode_label">单手识别模式</string>
+    <string name="settings_appearance">外观设置</string>
+    <string name="settings_theme_mode">主题模式</string>
+    <string name="settings_theme_mode_label">主题模式</string>
+    <string name="settings_theme_color">主题色</string>
+    <string name="settings_floating_alpha">悬浮窗透明度</string>
+    <string name="settings_others">其他</string>
+    <string name="settings_check_permissions">权限检查</string>
+    <string name="settings_check_permissions_label">权限检查</string>
+    <string name="settings_camera_permission">相机权限</string>
+    <string name="settings_overlay_permission">悬浮窗权限</string>
+    <string name="settings_accessibility_service">无障碍服务</string>
+    <string name="settings_feedback">问题反馈</string>
+    <string name="settings_about">关于我们</string>
+    <string name="settings_language">语言</string>
+    <string name="settings_chinese">中文</string>
+    <string name="settings_english">English</string>
+
+    <!-- Theme mode -->
+    <string name="theme_system">跟随系统</string>
+    <string name="theme_light">浅色</string>
+    <string name="theme_dark">深色</string>
+
+    <!-- Single hand mode -->
+    <string name="single_hand_both">双手</string>
+    <string name="single_hand_left">左手</string>
+    <string name="single_hand_right">右手</string>
+    <string name="single_hand_mode_title">单手识别模式</string>
+
+    <!-- Camera / Preview -->
+    <string name="preview_title">实时预览</string>
+    <string name="preview_recognizing">REC  识别中</string>
+    <string name="preview_current_gesture">当前手势</string>
+    <string name="preview_no_gesture">未检测到手势</string>
+    <string name="preview_fps_zero">0\nFPS</string>
+    <string name="preview_fps_format">%d\nFPS</string>
+
+    <!-- Home -->
+    <string name="home_title">手势映射助手</string>
+    <string name="home_floating_window">悬浮窗</string>
+    <string name="home_floating_desc">实时识别手势并执行映射操作</string>
+    <string name="home_today_count">今日识别次数</string>
+    <string name="home_total_count">总识别次数</string>
+    <string name="home_my_mappings">我的手势映射</string>
+    <string name="home_reset_all">重置所有手势</string>
+
+    <!-- Gesture Mapping -->
+    <string name="mapping_title">手势映射助手</string>
+    <string name="mapping_today_count">今日识别次数</string>
+    <string name="mapping_total_count">总识别次数</string>
+    <string name="mapping_gesture_actions">手势动作</string>
+    <string name="mapping_reset_defaults">恢复默认</string>
+
+    <!-- Gesture names (Chinese) -->
+    <string name="gesture_none">未检测到手势</string>
+    <string name="gesture_middle_finger">点赞</string>
+    <string name="gesture_pinky_finger">取消点赞</string>
+    <string name="gesture_index_finger">下一个</string>
+    <string name="gesture_peace_v">比耶</string>
+    <string name="gesture_index_middle_ring">三指</string>
+    <string name="gesture_index_middle_ring_pinky">四指</string>
+    <string name="gesture_spider_man_shooter">蜘蛛侠</string>
+    <string name="gesture_spider_shooter_no_thumb">无拇指蜘蛛侠</string>
+    <string name="gesture_ok">OK</string>
+    <string name="gesture_thumb">大拇指</string>
+    <string name="gesture_fox">狐狸</string>
+    <string name="gesture_aki_fox_devil">狐狸</string>
+    <string name="gesture_sixsixsix">666</string>
+
+    <!-- Original gesture names kept for backward compat -->
+    <string name="gesture_middle_finger_alt">点赞</string>
+    <string name="gesture_pinky_finger_alt">小拇指</string>
+    <string name="gesture_index_finger_alt">食指</string>
+    <string name="gesture_peace_v_alt">比耶</string>
+    <string name="gesture_index_middle_ring_alt">三指</string>
+    <string name="gesture_index_middle_ring_pinky_alt">四指</string>
+    <string name="gesture_spider_man_shooter_alt">蜘蛛侠</string>
+    <string name="gesture_spider_shooter_no_thumb_alt">蜘蛛侠(无拇指)</string>
+    <string name="gesture_ok_alt">OK</string>
+    <string name="gesture_thumb_alt">大拇指</string>
+    <string name="gesture_aki_fox_devil_alt">狐狸</string>
+    <string name="gesture_sixsixsix_alt">666</string>
+
+    <!-- Gesture actions -->
+    <string name="action_none">无</string>
+    <string name="action_next">下一个</string>
+    <string name="action_prev">上一个</string>
+    <string name="action_share">分享</string>
+    <string name="action_like">点赞</string>
+    <string name="action_unlike">取消点赞</string>
+    <string name="action_open_comments">打开评论</string>
+    <string name="action_double_speed">2倍速</string>
+    <string name="action_normal_speed">1倍速</string>
+    <string name="action_follow">关注</string>
+    <string name="action_mark">收藏</string>
+    <string name="action_back">返回</string>
+    <string name="action_user_avatar">个人主页</string>
+    <string name="action_custom">自定义</string>
+
+    <!-- Bottom sheet -->
+    <string name="label_inference_time">推理时间</string>
+    <string name="label_fps">帧率</string>
+    <string name="label_hand_detection_confidence_threshold">检测阈值</string>
+    <string name="label_hand_tracking_confidence_threshold">追踪阈值</string>
+    <string name="label_hand_presence_confidence_threshold">存在阈值</string>
+    <string name="label_num_hands">手指数</string>
+    <string name="label_delegate">推理设备</string>
+    <string-array name="delegate_spinner_titles">
+        <item>CPU</item>
+        <item>GPU</item>
+    </string-array>
+
+    <!-- Floating window -->
+    <string name="floating_title">悬浮窗</string>
+    <string name="floating_description">实时识别手势并执行映射操作</string>
+    <string name="floating_close">关闭</string>
+    <string name="floating_minimize">最小化</string>
+    <string name="floating_switch_camera">切换摄像头</string>
+    <string name="floating_single_hand_both">双手模式</string>
+    <string name="floating_single_hand_left">仅左手</string>
+    <string name="floating_single_hand_right">仅右手</string>
+
+    <!-- Dialog titles -->
+    <string name="dialog_theme_title">主题模式</string>
+    <string name="dialog_single_hand_title">单手识别模式</string>
+
+    <!-- Permission request messages -->
+    <string name="permission_camera_required">请先授予相机权限</string>
+    <string name="permission_overlay_required">悬浮窗权限未开启</string>
+
+    <!-- Placeholders -->
+    <string name="tv_gallery_placeholder">点击 + 添加图片或视频。</string>
+</resources>

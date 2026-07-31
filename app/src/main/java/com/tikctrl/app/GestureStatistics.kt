@@ -72,23 +72,4 @@ object GestureStatistics {
     fun getTotalCount(): Int {
         return prefs.getInt(KEY_TOTAL_COUNT, 0)
     }
-
-    fun calculateSensitivity(): Int {
-        val todayCount = getTodayCount()
-        val history = getHistory(7)
-        val avgCount = if (history.isNotEmpty()) history.map { it.second }.average() else 0.0
-
-        // 灵敏度计算逻辑：
-        // - 滑动次数越多，灵敏度越低（用户熟练了，需要更精确）
-        // - 滑动次数越少，灵敏度越高（新手需要更宽松的检测）
-        // 基准值 80，范围 40-100
-
-        return when {
-            todayCount < 5 -> 95  // 新手/第一天，高灵敏度
-            todayCount < 20 -> 85  // 少量使用
-            todayCount < 50 -> 75  // 中等使用
-            todayCount < 100 -> 65 // 经常使用
-            else -> 55              // 熟练用户，需要更高精度
-        }
-    }
 }

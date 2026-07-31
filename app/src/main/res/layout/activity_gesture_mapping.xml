@@ -17,7 +17,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="手势映射助手"
+            android:text="@string/mapping_title"
             android:textColor="@color/color_text_primary"
             android:textSize="24sp"
             android:textStyle="bold" />
@@ -52,7 +52,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="今日识别次数"
+                    android:text="@string/mapping_today_count"
                     android:textColor="@color/color_text_secondary"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -82,7 +82,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="总识别次数"
+                    android:text="@string/mapping_total_count"
                     android:textColor="@color/color_text_secondary"
                     android:textSize="12sp" />
             </LinearLayout>
@@ -100,7 +100,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Gesture Actions"
+                android:text="@string/mapping_gesture_actions"
                 android:textColor="@color/color_text_primary"
                 android:textSize="17sp"
                 android:textStyle="bold" />
@@ -119,7 +119,7 @@
             android:layout_height="48dp"
             android:layout_marginTop="16dp"
             android:backgroundTint="@color/color_button_bg"
-            android:text="Reset Defaults"
+            android:text="@string/mapping_reset_defaults"
             android:textColor="@color/color_button_text" />
     </LinearLayout>
 </ScrollView>

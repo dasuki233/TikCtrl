@@ -1117,15 +1117,11 @@ class GestureActionService : AccessibilityService() {
             GestureMappingManager.Action.NEXT -> {
                 Log.i("GestureActionService", "Action NEXT: swipe up")
                 swipeUp()
-                GestureStatistics.incrementCount()
-//                debugCurrentContentDescriptions()
             }
             // 二、下滑(上一个视频)
             GestureMappingManager.Action.PREV -> {
                 Log.i("GestureActionService", "Action PREV: swipe down")
                 swipeDown()
-                GestureStatistics.incrementCount()
-//                findAndClickByContentDescPartial("已关注")
             }
             // 三、点赞
             GestureMappingManager.Action.LIKE -> {
@@ -1222,6 +1218,7 @@ class GestureActionService : AccessibilityService() {
             if (action != GestureMappingManager.Action.NONE) {
                 android.util.Log.i("GestureActionService", "Will trigger visual feedback flash for action=$action")
                 flashBorder()
+                GestureStatistics.incrementCount()
             } else {
                 android.util.Log.i("GestureActionService", "No visual feedback for NONE action")
             }

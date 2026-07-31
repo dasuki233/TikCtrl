@@ -3,6 +3,7 @@ package com.tikctrl.app.fragment
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -21,6 +22,7 @@ import com.tikctrl.app.GestureStatistics
 import com.tikctrl.app.MainActivity
 import com.tikctrl.app.MainViewModel
 import com.tikctrl.app.R
+import java.util.Locale
 
 class GalleryFragment : Fragment() {
     private val viewModel: MainViewModel by activityViewModels()
@@ -44,7 +46,6 @@ class GalleryFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // 初始化手势统计
         GestureStatistics.init(requireContext())
 
         val prefs = requireContext().getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
@@ -60,8 +61,8 @@ class GalleryFragment : Fragment() {
         bindSwitch(view.findViewById(R.id.switch_mirror), prefs, "mirror_mode", true)
         bindSwitch(view.findViewById(R.id.switch_front_camera), prefs, "front_camera", true)
 
-        view.findViewById<TextView>(R.id.btn_check_permissions).setOnClickListener {
-            (requireActivity() as? com.tikctrl.app.MainActivity)?.checkAndRequestCameraAndOverlayPermission()
+        view.findViewById<View>(R.id.row_check_permissions).setOnClickListener {
+            (requireActivity() as? MainActivity)?.checkAndRequestCameraAndOverlayPermission()
         }
 
         updatePermissionStatus(view)
@@ -70,21 +71,67 @@ class GalleryFragment : Fragment() {
 
         bindThemeMode(view)
         bindThemeColor(view)
+        bindLanguage(view)
+    }
+
+    private fun bindLanguage(view: View) {
+        val prefs = requireContext().getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
+        val tvLanguage = view.findViewById<TextView>(R.id.tv_language)
+        val rowLanguage = view.findViewById<View>(R.id.row_language)
+        val currentLang = prefs.getString("language", "zh") ?: "zh"
+        updateLanguageText(tvLanguage, currentLang)
+
+        rowLanguage.setOnClickListener {
+            val langs = arrayOf(
+                getString(R.string.settings_chinese),
+                getString(R.string.settings_english)
+            )
+            val currentIndex = if (currentLang == "en") 1 else 0
+            AlertDialog.Builder(requireContext())
+                .setTitle(getString(R.string.settings_language))
+                .setSingleChoiceItems(langs, currentIndex) { dialog, which ->
+                    val lang = if (which == 1) "en" else "zh"
+                    prefs.edit().putString("language", lang).apply()
+                    setAppLocale(lang)
+                    dialog.dismiss()
+                    recreateActivity()
+                }
+                .show()
+        }
+    }
+
+    private fun updateLanguageText(textView: TextView, lang: String) {
+        textView.text = getString(
+            if (lang == "en") R.string.settings_english else R.string.settings_chinese
+        )
+    }
+
+    private fun setAppLocale(languageCode: String) {
+        val locale = Locale(languageCode)
+        Locale.setDefault(locale)
+        val config = Configuration()
+        config.locale = locale
+        requireContext().resources.updateConfiguration(config, requireContext().resources.displayMetrics)
     }
 
     private fun bindThemeMode(view: View) {
         val prefs = requireContext().getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
-        val tvThemeMode = view.findViewById<TextView>(R.id.tv_theme_mode)
+        val tvThemeModeValue = view.findViewById<TextView>(R.id.tv_theme_mode_value)
+        val rowThemeMode = view.findViewById<View>(R.id.row_theme_mode)
         val currentMode = prefs.getInt("theme_mode", THEME_MODE_SYSTEM)
-        updateThemeModeText(tvThemeMode, currentMode)
+        updateThemeModeText(tvThemeModeValue, currentMode)
 
-        tvThemeMode.setOnClickListener {
-            val modes = arrayOf("跟随系统", "浅色", "深色")
+        rowThemeMode.setOnClickListener {
+            val modes = arrayOf(
+                getString(R.string.theme_system),
+                getString(R.string.theme_light),
+                getString(R.string.theme_dark)
+            )
             AlertDialog.Builder(requireContext())
-                .setTitle("主题模式")
+                .setTitle(getString(R.string.dialog_theme_title))
                 .setSingleChoiceItems(modes, currentMode) { dialog, which ->
                     prefs.edit().putInt("theme_mode", which).apply()
-                    updateThemeModeText(tvThemeMode, which)
+                    updateThemeModeText(tvThemeModeValue, which)
                     dialog.dismiss()
                     recreateActivity()
                 }
@@ -94,12 +141,12 @@ class GalleryFragment : Fragment() {
 
     private fun updateThemeModeText(textView: TextView, mode: Int) {
         val modeName = when (mode) {
-            THEME_MODE_SYSTEM -> "跟随系统"
-            THEME_MODE_LIGHT -> "浅色"
-            THEME_MODE_DARK -> "深色"
-            else -> "跟随系统"
+            THEME_MODE_SYSTEM -> getString(R.string.theme_system)
+            THEME_MODE_LIGHT -> getString(R.string.theme_light)
+            THEME_MODE_DARK -> getString(R.string.theme_dark)
+            else -> getString(R.string.theme_system)
         }
-        textView.text = "主体模式                                                 $modeName  >"
+        textView.text = modeName
     }
 
     private fun bindThemeColor(view: View) {
@@ -142,19 +189,24 @@ class GalleryFragment : Fragment() {
     }
 
     private fun bindSingleHandMode(view: View) {
-        val tvSingleHandMode = view.findViewById<TextView>(R.id.tv_single_hand_mode)
+        val tvSingleHandModeValue = view.findViewById<TextView>(R.id.tv_single_hand_mode_value)
+        val rowSingleHandMode = view.findViewById<View>(R.id.row_single_hand_mode)
         val currentMode = com.tikctrl.app.GestureMappingManager.getSingleHandMode(requireContext())
-        updateSingleHandModeText(tvSingleHandMode, currentMode)
+        updateSingleHandModeText(tvSingleHandModeValue, currentMode)
 
-        tvSingleHandMode.setOnClickListener {
-            val modes = arrayOf("双手", "左手", "右手")
+        rowSingleHandMode.setOnClickListener {
+            val modes = arrayOf(
+                getString(R.string.single_hand_both),
+                getString(R.string.single_hand_left),
+                getString(R.string.single_hand_right)
+            )
             val currentIndex = when (currentMode) {
                 com.tikctrl.app.GestureMappingManager.SingleHandMode.BOTH -> 0
                 com.tikctrl.app.GestureMappingManager.SingleHandMode.LEFT -> 1
                 com.tikctrl.app.GestureMappingManager.SingleHandMode.RIGHT -> 2
             }
             AlertDialog.Builder(requireContext())
-                .setTitle("单手识别模式")
+                .setTitle(getString(R.string.single_hand_mode_title))
                 .setSingleChoiceItems(modes, currentIndex) { dialog, which ->
                     val mode = when (which) {
                         1 -> com.tikctrl.app.GestureMappingManager.SingleHandMode.LEFT
@@ -162,7 +214,7 @@ class GalleryFragment : Fragment() {
                         else -> com.tikctrl.app.GestureMappingManager.SingleHandMode.BOTH
                     }
                     com.tikctrl.app.GestureMappingManager.setSingleHandMode(requireContext(), mode)
-                    updateSingleHandModeText(tvSingleHandMode, mode)
+                    updateSingleHandModeText(tvSingleHandModeValue, mode)
                     dialog.dismiss()
                 }
                 .show()
@@ -171,11 +223,11 @@ class GalleryFragment : Fragment() {
 
     private fun updateSingleHandModeText(textView: TextView, mode: com.tikctrl.app.GestureMappingManager.SingleHandMode) {
         val modeName = when (mode) {
-            com.tikctrl.app.GestureMappingManager.SingleHandMode.BOTH -> "双手"
-            com.tikctrl.app.GestureMappingManager.SingleHandMode.LEFT -> "左手"
-            com.tikctrl.app.GestureMappingManager.SingleHandMode.RIGHT -> "右手"
+            com.tikctrl.app.GestureMappingManager.SingleHandMode.BOTH -> getString(R.string.single_hand_both)
+            com.tikctrl.app.GestureMappingManager.SingleHandMode.LEFT -> getString(R.string.single_hand_left)
+            com.tikctrl.app.GestureMappingManager.SingleHandMode.RIGHT -> getString(R.string.single_hand_right)
         }
-        textView.text = "单手识别模式                            $modeName  >"
+        textView.text = modeName
     }
 
     private fun bindPercentSeekBar(
@@ -232,10 +284,10 @@ class GalleryFragment : Fragment() {
 
     private fun updateStatusText(textView: TextView, isGranted: Boolean) {
         if (isGranted) {
-            textView.text = "已开启"
+            textView.text = getString(R.string.status_granted)
             textView.setTextColor(requireContext().getColor(R.color.color_success))
         } else {
-            textView.text = "未开启"
+            textView.text = getString(R.string.status_not_granted)
             textView.setTextColor(requireContext().getColor(R.color.color_error))
         }
     }

@@ -28,7 +28,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="实时预览"
+                    android:text="@string/preview_title"
                     android:textColor="@color/color_text_primary"
                     android:textSize="24sp"
                     android:textStyle="bold" />
@@ -38,7 +38,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
                     android:layout_weight="1"
-                    android:text="REC  Recognizing"
+                    android:text="@string/preview_recognizing"
                     android:textColor="@color/color_primary"
                     android:textSize="13sp" />
             </LinearLayout>
@@ -94,7 +94,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="当前手势"
+                        android:text="@string/preview_current_gesture"
                         android:textColor="@color/color_text_primary"
                         android:textSize="14sp"
                         android:textStyle="bold" />
@@ -105,7 +105,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
                         android:layout_weight="1"
-                        android:text="未检测到手势"
+                        android:text="@string/preview_no_gesture"
                         android:textColor="@color/color_primary"
                         android:textSize="16sp"
                         android:textStyle="bold" />
@@ -124,7 +124,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:gravity="center"
-                        android:text="0&#10;FPS"
+                        android:text="@string/preview_fps_zero"
                         android:textColor="@color/color_text_primary"
                         android:textSize="13sp"
                         android:textStyle="bold" />

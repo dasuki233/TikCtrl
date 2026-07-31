@@ -19,6 +19,7 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.appcompat.app.AlertDialog
 import android.content.ComponentName
+import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -37,6 +38,7 @@ import android.graphics.Color
 import android.widget.LinearLayout
 import android.widget.ImageView
 import android.widget.TextView
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
     private lateinit var activityMainBinding: ActivityMainBinding
@@ -52,6 +54,7 @@ class MainActivity : AppCompatActivity() {
     private var selectedNavIndex = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        applyLanguage()
         applyThemeMode()
         super.onCreate(savedInstanceState)
 
@@ -254,6 +257,16 @@ class MainActivity : AppCompatActivity() {
 
     override fun onBackPressed() {
         finish()
+    }
+
+    private fun applyLanguage() {
+        val prefs = getSharedPreferences("gesture_prefs", MODE_PRIVATE)
+        val language = prefs.getString("language", "zh") ?: "zh"
+        val locale = Locale(language)
+        Locale.setDefault(locale)
+        val config = Configuration()
+        config.locale = locale
+        resources.updateConfiguration(config, resources.displayMetrics)
     }
 
     private fun applyThemeMode() {
