@@ -27,6 +27,11 @@
     <string name="settings_use_front_camera">Use Front Camera</string>
     <string name="settings_single_hand_mode">Single Hand Mode</string>
     <string name="settings_single_hand_mode_label">Single Hand Mode</string>
+    <string name="settings_power_saving">Power Saving Mode</string>
+    <string name="settings_power_saving_desc">Reduce frame rate to 10 FPS, CPU only</string>
+    <string name="settings_inference_delegate">Inference Engine</string>
+    <string name="delegate_cpu">CPU</string>
+    <string name="delegate_gpu">GPU</string>
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme_mode">Theme Mode</string>
     <string name="settings_theme_mode_label">Theme Mode</string>

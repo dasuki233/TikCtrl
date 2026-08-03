@@ -60,6 +60,9 @@ class GalleryFragment : Fragment() {
 
         bindSwitch(view.findViewById(R.id.switch_mirror), prefs, "mirror_mode", true)
         bindSwitch(view.findViewById(R.id.switch_front_camera), prefs, "front_camera", true)
+        bindSwitch(view.findViewById(R.id.switch_power_saving), prefs, "power_saving_mode", false)
+
+        bindInferenceDelegate(view)
 
         view.findViewById<View>(R.id.row_check_permissions).setOnClickListener {
             (requireActivity() as? MainActivity)?.checkAndRequestCameraAndOverlayPermission()
@@ -215,6 +218,26 @@ class GalleryFragment : Fragment() {
                     }
                     com.tikctrl.app.GestureMappingManager.setSingleHandMode(requireContext(), mode)
                     updateSingleHandModeText(tvSingleHandModeValue, mode)
+                    dialog.dismiss()
+                }
+                .show()
+        }
+    }
+
+    private fun bindInferenceDelegate(view: View) {
+        val prefs = requireContext().getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
+        val tvDelegate = view.findViewById<TextView>(R.id.tv_inference_delegate_value)
+        val rowDelegate = view.findViewById<View>(R.id.row_inference_delegate)
+        val current = prefs.getInt("inference_delegate", 0) // 0=CPU, 1=GPU
+        tvDelegate.text = if (current == 1) getString(R.string.delegate_gpu) else getString(R.string.delegate_cpu)
+
+        rowDelegate.setOnClickListener {
+            val options = arrayOf(getString(R.string.delegate_cpu), getString(R.string.delegate_gpu))
+            AlertDialog.Builder(requireContext())
+                .setTitle(getString(R.string.settings_inference_delegate))
+                .setSingleChoiceItems(options, current) { dialog, which ->
+                    prefs.edit().putInt("inference_delegate", which).apply()
+                    tvDelegate.text = if (which == 1) getString(R.string.delegate_gpu) else getString(R.string.delegate_cpu)
                     dialog.dismiss()
                 }
                 .show()

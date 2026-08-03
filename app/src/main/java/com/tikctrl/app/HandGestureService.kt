@@ -67,6 +67,8 @@ class HandGestureService : LifecycleService() {
     private val prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == "floating_alpha") {
             updateFloatingAlpha()
+        } else if (key == "inference_delegate") {
+            setupHandLandmarker()
         }
     }
     private var cameraProvider: ProcessCameraProvider? = null
@@ -81,6 +83,8 @@ class HandGestureService : LifecycleService() {
     private var lastSentTimeMs: Long = 0
     private val gestureCooldownMs: Long = 1500  // 发送广播冷却
     private var isCreatingFloatingPreview = false
+    private var lastAnalyzeTimeMs: Long = 0
+    private val powerSavingIntervalMs: Long = 100 // 10 FPS = 100ms interval
 
     override fun onCreate() {
         super.onCreate()
@@ -169,8 +173,17 @@ class HandGestureService : LifecycleService() {
             // 固定检测置信度阈值
             val minConfidence = 0.7f
 
+            // 读取推理引擎设置
+            val useGPU = prefs?.getInt("inference_delegate", 0) == 1
+            // 省电模式强制CPU
+            val powerSaving = prefs?.getBoolean("power_saving_mode", false) ?: false
+            val delegate = if (useGPU && !powerSaving) Delegate.GPU else Delegate.CPU
+
+            // 关闭旧的检测器
+            try { handLandmarker?.close() } catch (_: Exception) {}
+
             val baseOptions = BaseOptions.builder()
-                .setDelegate(Delegate.CPU)  // 使用CPU推理
+                .setDelegate(delegate)
                 .setModelAssetPath("hand_landmarker.task")  // 模型文件路径
                 .build()
 
@@ -187,9 +200,29 @@ class HandGestureService : LifecycleService() {
 
             // 创建手部关键点检测器实例
             handLandmarker = HandLandmarker.createFromOptions(this, options)
-            Log.d(TAG, "HandLandmarker initialized with minConfidence: $minConfidence")
+            Log.d(TAG, "HandLandmarker initialized with delegate: $delegate, minConfidence: $minConfidence")
         } catch (e: Exception) {
             Log.e(TAG, "HandLandmarker init failed: ${e.message}")
+            // GPU失败时回退到CPU
+            try {
+                val baseOptions = BaseOptions.builder()
+                    .setDelegate(Delegate.CPU)
+                    .setModelAssetPath("hand_landmarker.task")
+                    .build()
+                val options = HandLandmarker.HandLandmarkerOptions.builder()
+                    .setBaseOptions(baseOptions)
+                    .setNumHands(2)
+                    .setMinHandDetectionConfidence(0.7f)
+                    .setRunningMode(RunningMode.LIVE_STREAM)
+                    .setResultListener { result: HandLandmarkerResult, _: com.google.mediapipe.framework.image.MPImage ->
+                        handleHandLandmarkerResult(result)
+                    }
+                    .build()
+                handLandmarker = HandLandmarker.createFromOptions(this, options)
+                Log.w(TAG, "Falled back to CPU delegate after GPU init failed")
+            } catch (e2: Exception) {
+                Log.e(TAG, "CPU fallback also failed: ${e2.message}")
+            }
         }
     }
 
@@ -253,6 +286,17 @@ class HandGestureService : LifecycleService() {
                 if (isDestroyed) {
                     imageProxy.close()
                     return@setAnalyzer
+                }
+                
+                // 省电模式：帧节流至10 FPS
+                val powerSaving = prefs?.getBoolean("power_saving_mode", false) ?: false
+                if (powerSaving) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastAnalyzeTimeMs < powerSavingIntervalMs) {
+                        imageProxy.close()
+                        return@setAnalyzer
+                    }
+                    lastAnalyzeTimeMs = now
                 }
                 val mpImage = imageProxy.toMpImage()
                 if (mpImage == null) {

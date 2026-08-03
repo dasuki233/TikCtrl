@@ -27,6 +27,11 @@
     <string name="settings_use_front_camera">使用前置摄像头</string>
     <string name="settings_single_hand_mode">单手识别模式</string>
     <string name="settings_single_hand_mode_label">单手识别模式</string>
+    <string name="settings_power_saving">省电模式</string>
+    <string name="settings_power_saving_desc">降低帧率至10FPS，仅使用CPU推理</string>
+    <string name="settings_inference_delegate">推理引擎</string>
+    <string name="delegate_cpu">CPU</string>
+    <string name="delegate_gpu">GPU</string>
     <string name="settings_appearance">外观设置</string>
     <string name="settings_theme_mode">主题模式</string>
     <string name="settings_theme_mode_label">主题模式</string>

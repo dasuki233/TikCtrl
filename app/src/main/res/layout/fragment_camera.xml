@@ -62,18 +62,6 @@
                     android:id="@+id/overlay"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent" />
-
-                <TextView
-                    android:layout_width="52dp"
-                    android:layout_height="34dp"
-                    android:layout_gravity="top|start"
-                    android:layout_margin="12dp"
-                    android:background="@drawable/bg_camera_badge"
-                    android:gravity="center"
-                    android:text="92%"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
             </FrameLayout>
 
             <LinearLayout

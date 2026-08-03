@@ -82,6 +82,8 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
 
     // FPS calculation
     private var frameCount = 0
+    private var lastAnalyzeTimeMs: Long = 0
+    private val powerSavingIntervalMs: Long = 100 // 10 FPS = 100ms interval
     private var lastFpsCalculationTime = System.currentTimeMillis()
     private var currentFps = 0
 
@@ -155,6 +157,11 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
 
         // Create the HandLandmarkerHelper that will handle the inference
         backgroundExecutor.execute {
+            val prefs = requireContext().getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
+            val useGPU = prefs.getInt("inference_delegate", 0) == 1
+            val powerSaving = prefs.getBoolean("power_saving_mode", false)
+            val delegate = if (useGPU && !powerSaving) HandLandmarkerHelper.DELEGATE_GPU else HandLandmarkerHelper.DELEGATE_CPU
+
             handLandmarkerHelper = HandLandmarkerHelper(
                 context = requireContext(),
                 runningMode = RunningMode.LIVE_STREAM,
@@ -162,7 +169,7 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
                 minHandTrackingConfidence = viewModel.currentMinHandTrackingConfidence,
                 minHandPresenceConfidence = viewModel.currentMinHandPresenceConfidence,
                 maxNumHands = viewModel.currentMaxHands,
-                currentDelegate = viewModel.currentDelegate,
+                currentDelegate = delegate,
                 handLandmarkerHelperListener = this
             )
         }
@@ -383,6 +390,16 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
                 // The analyzer can then be assigned to the instance
                 .also {
                     it.setAnalyzer(backgroundExecutor) { image ->
+                        // 省电模式：帧节流至10 FPS
+                        val prefs = requireContext().getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
+                        if (prefs.getBoolean("power_saving_mode", false)) {
+                            val now = System.currentTimeMillis()
+                            if (now - lastAnalyzeTimeMs < powerSavingIntervalMs) {
+                                image.close()
+                                return@setAnalyzer
+                            }
+                            lastAnalyzeTimeMs = now
+                        }
                         detectHand(image)
                     }
                 }
