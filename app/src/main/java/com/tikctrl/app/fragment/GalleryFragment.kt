@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
@@ -12,11 +13,14 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.SeekBar
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import com.google.android.material.snackbar.Snackbar
+import com.tikctrl.app.ConfigManager
 import com.tikctrl.app.GestureActionService
 import com.tikctrl.app.GestureStatistics
 import com.tikctrl.app.MainActivity
@@ -36,6 +40,65 @@ class GalleryFragment : Fragment() {
     private val COLOR_PURPLE = "#7C3AED"
     private val COLOR_ORANGE = "#FF9518"
     private val COLOR_RED = "#FF4F42"
+
+    private val exportLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val json = ConfigManager.exportToJson(requireContext())
+                requireContext().contentResolver.openOutputStream(uri)?.use { os ->
+                    os.write(json.toByteArray())
+                }
+                Snackbar.make(requireView(), getString(R.string.export_success), Snackbar.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Snackbar.make(requireView(), getString(R.string.export_failed), Snackbar.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private val importLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val json = requireContext().contentResolver.openInputStream(uri)?.use { input ->
+                    input.bufferedReader().use { it.readText() }
+                } ?: run {
+                    Snackbar.make(requireView(), getString(R.string.import_failed, "Read file failed"), Snackbar.LENGTH_SHORT).show()
+                    return@let
+                }
+
+                AlertDialog.Builder(requireContext())
+                    .setTitle(getString(R.string.dialog_import_title))
+                    .setMessage(getString(R.string.dialog_import_message))
+                    .setPositiveButton(getString(R.string.confirm)) { dialog, _ ->
+                        val result = ConfigManager.importFromJson(requireContext(), json)
+                        if (result.success) {
+                            Snackbar.make(
+                                requireView(),
+                                getString(R.string.import_success, result.gestureCount, result.settingsCount),
+                                Snackbar.LENGTH_SHORT
+                            ).show()
+                            recreateActivity()
+                        } else {
+                            Snackbar.make(
+                                requireView(),
+                                getString(R.string.import_failed, result.errorMessage ?: "Unknown error"),
+                                Snackbar.LENGTH_LONG
+                            ).show()
+                        }
+                        dialog.dismiss()
+                    }
+                    .setNegativeButton(getString(R.string.cancel)) { dialog, _ ->
+                        dialog.dismiss()
+                    }
+                    .show()
+            } catch (e: Exception) {
+                Snackbar.make(requireView(), getString(R.string.import_failed, e.message ?: "Error"), Snackbar.LENGTH_LONG).show()
+            }
+        }
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -75,6 +138,14 @@ class GalleryFragment : Fragment() {
         bindThemeMode(view)
         bindThemeColor(view)
         bindLanguage(view)
+
+        view.findViewById<View>(R.id.row_export_config).setOnClickListener {
+            exportLauncher.launch(getString(R.string.config_file_name))
+        }
+
+        view.findViewById<View>(R.id.row_import_config).setOnClickListener {
+            importLauncher.launch(arrayOf("application/json", "*/*"))
+        }
     }
 
     private fun bindLanguage(view: View) {

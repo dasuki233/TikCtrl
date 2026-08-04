@@ -14,6 +14,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.SwitchCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Observer
+import com.google.android.material.snackbar.Snackbar
 import com.tikctrl.app.GestureClassifier
 import com.tikctrl.app.GestureMappingManager
 import com.tikctrl.app.GestureStatistics
@@ -22,6 +24,8 @@ import com.tikctrl.app.MainActivity
 import com.tikctrl.app.R
 
 class HomeFragment : Fragment() {
+    private var isUpdatingSwitch = false
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -32,9 +36,20 @@ class HomeFragment : Fragment() {
         // 初始化手势统计
         GestureStatistics.init(requireContext())
 
-        root.findViewById<SwitchCompat>(R.id.switch_visual_feedback).apply {
+        val serviceSwitch = root.findViewById<SwitchCompat>(R.id.switch_visual_feedback)
+
+        // 观察服务状态变化，实时更新 UI
+        HandGestureService.serviceRunning.observe(viewLifecycleOwner, Observer { running ->
+            isUpdatingSwitch = true
+            serviceSwitch.isChecked = running
+            isUpdatingSwitch = false
+        })
+
+        serviceSwitch.apply {
             isChecked = isServiceRunning(HandGestureService::class.java)
             setOnCheckedChangeListener { _, checked ->
+                if (isUpdatingSwitch) return@setOnCheckedChangeListener
+
                 val activity = activity as? MainActivity
                 if (activity == null) {
                     android.widget.Toast.makeText(requireContext(), "无法获取主界面", android.widget.Toast.LENGTH_SHORT).show()
@@ -101,16 +116,28 @@ class HomeFragment : Fragment() {
             mappingContainer.addView(createMappingRow(gesture))
         }
 
-        // Reset All 按钮 - 将所有手势重置为 None
+        // Reset All 按钮 - 确认后重置所有手势为 None
         root.findViewById<android.widget.Button>(R.id.btn_reset_all).setOnClickListener {
-            gestures.forEach { gesture ->
-                GestureMappingManager.setActionForGesture(requireContext(), gesture, GestureMappingManager.Action.NONE)
-            }
-            // 刷新页面 - 清除容器并重新创建
-            mappingContainer.removeAllViews()
-            gestures.forEach { gesture ->
-                mappingContainer.addView(createMappingRow(gesture))
-            }
+            AlertDialog.Builder(requireContext())
+                .setTitle(getString(R.string.dialog_reset_confirm_title))
+                .setMessage(getString(R.string.dialog_reset_confirm_message))
+                .setPositiveButton(getString(R.string.confirm)) { dialog, _ ->
+                    gestures.forEach { gesture ->
+                        GestureMappingManager.setActionForGesture(requireContext(), gesture, GestureMappingManager.Action.NONE)
+                    }
+                    // 刷新页面
+                    mappingContainer.removeAllViews()
+                    gestures.forEach { gesture ->
+                        mappingContainer.addView(createMappingRow(gesture))
+                    }
+                    // 显示反馈
+                    Snackbar.make(it, getString(R.string.dialog_reset_done), Snackbar.LENGTH_SHORT).show()
+                    dialog.dismiss()
+                }
+                .setNegativeButton(getString(R.string.cancel)) { dialog, _ ->
+                    dialog.dismiss()
+                }
+                .show()
         }
 
         return root
@@ -120,7 +147,9 @@ class HomeFragment : Fragment() {
         super.onResume()
         GestureStatistics.init(requireContext())
         view?.let { updateStatistics(it) }
+        isUpdatingSwitch = true
         view?.findViewById<SwitchCompat>(R.id.switch_visual_feedback)?.isChecked = isServiceRunning(HandGestureService::class.java)
+        isUpdatingSwitch = false
     }
 
     private fun updateStatistics(root: View) {
@@ -313,7 +342,9 @@ class HomeFragment : Fragment() {
                 val activity = activity as? MainActivity
                 if (activity != null && android.provider.Settings.canDrawOverlays(requireContext())) {
                     activity.startHandGestureService()
+                    isUpdatingSwitch = true
                     view?.findViewById<SwitchCompat>(R.id.switch_visual_feedback)?.isChecked = true
+                    isUpdatingSwitch = false
                     android.widget.Toast.makeText(requireContext(), "悬浮窗已开启", android.widget.Toast.LENGTH_SHORT).show()
                 } else {
                     android.widget.Toast.makeText(requireContext(), "请先授予悬浮窗权限", android.widget.Toast.LENGTH_SHORT).show()

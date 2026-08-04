@@ -20,6 +20,8 @@ import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.lifecycle.LifecycleService
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Observer
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.core.Delegate
@@ -50,6 +52,8 @@ class HandGestureService : LifecycleService() {
         private const val CHANNEL_ID = "hand_gesture_channel"   // 通知渠道ID
         const val ACTION_GESTURE = "com.tikctrl.app.ACTION_GESTURE"    // 广播动作
         const val EXTRA_GESTURE = "gesture"     // 广播中携带手势数据的键名
+
+        val serviceRunning = MutableLiveData<Boolean>()
     }
 
     private var handLandmarker: HandLandmarker? = null
@@ -69,6 +73,19 @@ class HandGestureService : LifecycleService() {
             updateFloatingAlpha()
         } else if (key == "inference_delegate") {
             setupHandLandmarker()
+        } else if (key == "mirror_mode") {
+            applyFloatingPreviewMirror()
+        } else if (key == "front_camera") {
+            val useFrontCamera = prefs?.getBoolean("front_camera", true) ?: true
+            currentCameraSelector = if (useFrontCamera) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
+            mainHandler.post {
+                try {
+                    bindCameraUseCases()
+                    applyFloatingPreviewMirror()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Camera rebind on front_camera change failed: ${e.message}")
+                }
+            }
         }
     }
     private var cameraProvider: ProcessCameraProvider? = null
@@ -85,10 +102,13 @@ class HandGestureService : LifecycleService() {
     private var isCreatingFloatingPreview = false
     private var lastAnalyzeTimeMs: Long = 0
     private val powerSavingIntervalMs: Long = 100 // 10 FPS = 100ms interval
+    private var hasFallenBackToCpu = false
+    private val pendingImageProxies = java.util.concurrent.ConcurrentLinkedQueue<ImageProxy>()
 
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "HandGestureService onCreate() called")
+        serviceRunning.postValue(true)
         cameraExecutor = Executors.newSingleThreadExecutor()
         prefs = getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE).also {
             it.registerOnSharedPreferenceChangeListener(prefsListener)
@@ -167,6 +187,7 @@ class HandGestureService : LifecycleService() {
 
     // 设置手部关键点检测器
     private fun setupHandLandmarker() {
+        hasFallenBackToCpu = false
         try {
             // 初始化手势统计
             GestureStatistics.init(this)
@@ -251,21 +272,13 @@ class HandGestureService : LifecycleService() {
     
     private fun applyFloatingPreviewMirror() {
         val mirrorMode = prefs?.getBoolean("mirror_mode", true) ?: true
-        val isFront = currentCameraSelector == CameraSelector.DEFAULT_FRONT_CAMERA
+        val useFrontCamera = prefs?.getBoolean("front_camera", true) ?: true
+        val shouldMirror = useFrontCamera && mirrorMode
         
-        if (floatingView != null && previewView != null) {
+        if (previewView != null) {
             previewView!!.post {
                 try {
-                    val textureView = previewView!!.getChildAt(0) as? android.view.TextureView
-                    if (textureView != null) {
-                        val matrix = android.graphics.Matrix()
-                        if (isFront && mirrorMode) {
-                            val centerX = textureView.width / 2f
-                            val centerY = textureView.height / 2f
-                            matrix.setScale(-1f, 1f, centerX, centerY)
-                        }
-                        textureView.setTransform(matrix)
-                    }
+                    previewView!!.scaleX = if (shouldMirror) -1f else 1f
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to apply floating preview mirror: ${e.message}")
                 }
@@ -283,11 +296,11 @@ class HandGestureService : LifecycleService() {
 
         analyzer.setAnalyzer(cameraExecutor!!) { imageProxy: ImageProxy ->
             try {
-                if (isDestroyed) {
+                if (isDestroyed || handLandmarker == null) {
                     imageProxy.close()
                     return@setAnalyzer
                 }
-                
+
                 // 省电模式：帧节流至10 FPS
                 val powerSaving = prefs?.getBoolean("power_saving_mode", false) ?: false
                 if (powerSaving) {
@@ -298,17 +311,46 @@ class HandGestureService : LifecycleService() {
                     }
                     lastAnalyzeTimeMs = now
                 }
+
+                // 使用图像帧的真实 timestamp，保证单调递增
+                val timestamp = imageProxy.imageInfo.timestamp
+
                 val mpImage = imageProxy.toMpImage()
                 if (mpImage == null) {
                     Log.w(TAG, "ImageProxy -> MPImage conversion returned null")
                     imageProxy.close()
                     return@setAnalyzer
                 }
+
                 val landmarker = handLandmarker
                 if (landmarker != null && !isDestroyed) {
-                    landmarker.detectAsync(mpImage, System.currentTimeMillis())
+                    // detectAsync 是异步的，MediaPipe 内部会持有 mpImage
+                    // 所以不能立即 close imageProxy，需要在结果回调中释放
+                    // 使用 closePool 延迟关闭
+                    pendingImageProxies.add(imageProxy)
+                    landmarker.detectAsync(mpImage, timestamp)
+                } else {
+                    imageProxy.close()
                 }
+            } catch (e: com.google.mediapipe.framework.MediaPipeException) {
+                Log.e(TAG, "MediaPipe error: ${e.message}")
                 imageProxy.close()
+
+                // 首次遇到错误时，立即置空 handLandmarker 阻止后续帧使用旧 GPU 实例
+                if (!hasFallenBackToCpu) {
+                    hasFallenBackToCpu = true
+                    Log.w(TAG, "MediaPipe error detected, falling back to CPU")
+                    val oldLandmarker = handLandmarker
+                    handLandmarker = null
+                    // 不能立即 close，因为 detectAsync 可能还在另一个线程跑
+                    // 延迟关闭，给 native graph 时间完成
+                    mainHandler.postDelayed({
+                        try { oldLandmarker?.close() } catch (_: Exception) {}
+                        prefs?.edit()?.putInt("inference_delegate", 0)?.apply()
+                        setupHandLandmarker()
+                        try { bindCameraUseCases() } catch (_: Exception) {}
+                    }, 500)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Analyzer error: ${e.message}")
                 imageProxy.close()
@@ -600,6 +642,9 @@ class HandGestureService : LifecycleService() {
     }
 
     private fun handleHandLandmarkerResult(result: HandLandmarkerResult) {
+        // detectAsync 完成后，释放对应的 ImageProxy
+        pendingImageProxies.poll()?.close()
+
         val mode = GestureMappingManager.getSingleHandMode(this)
 
         // result.landmarks() is a list of hands; handednesses() is parallel list of categories
@@ -683,16 +728,22 @@ class HandGestureService : LifecycleService() {
         super.onDestroy()
         isDestroyed = true
         Log.d(TAG, "HandGestureService onDestroy() called")
+        serviceRunning.postValue(false)
 
         try {
             cameraProvider?.unbindAll()
         } catch (e: Exception) { /* ignore */ }
 
+        // 等待 analyzer 线程处理完 pending 帧
         try {
             cameraExecutor?.shutdown()
             cameraExecutor?.awaitTermination(1, java.util.concurrent.TimeUnit.SECONDS)
             cameraExecutor = null
         } catch (e: Exception) { /* ignore */ }
+
+        // 释放所有未处理的 ImageProxy
+        pendingImageProxies.forEach { it.close() }
+        pendingImageProxies.clear()
 
         try {
             handLandmarker?.close()

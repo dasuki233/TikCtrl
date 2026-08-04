@@ -76,6 +76,11 @@
     <string name="home_total_count">Total Count</string>
     <string name="home_my_mappings">My Mappings</string>
     <string name="home_reset_all">Reset All Gestures</string>
+    <string name="dialog_reset_confirm_title">Reset All Gestures</string>
+    <string name="dialog_reset_confirm_message">Are you sure you want to reset all gesture mappings to None?</string>
+    <string name="dialog_reset_done">All gestures have been reset</string>
+    <string name="confirm">Confirm</string>
+    <string name="cancel">Cancel</string>
 
     <!-- Gesture Mapping -->
     <string name="mapping_title">Gesture Mapping Assistant</string>
@@ -83,6 +88,17 @@
     <string name="mapping_total_count">Total Count</string>
     <string name="mapping_gesture_actions">Gesture Actions</string>
     <string name="mapping_reset_defaults">Reset Defaults</string>
+    <string name="mapping_share_targets_hint">e.g. Alice, Bob, Mom</string>
+    <string name="mapping_share_targets_desc">Separate multiple targets with commas (,)</string>
+    <string name="mapping_export_config">Export Config</string>
+    <string name="mapping_import_config">Import Config</string>
+    <string name="dialog_import_title">Import Configuration</string>
+    <string name="dialog_import_message">This will overwrite your current gesture mappings and settings. Continue?</string>
+    <string name="export_success">Configuration exported successfully</string>
+    <string name="export_failed">Export failed</string>
+    <string name="import_success">Configuration imported: %1$d gestures, %2$d settings</string>
+    <string name="import_failed">Import failed: %1$s</string>
+    <string name="config_file_name">tikctrl_config.json</string>
 
     <!-- Gesture names (English) -->
     <string name="gesture_none">No gesture detected</string>

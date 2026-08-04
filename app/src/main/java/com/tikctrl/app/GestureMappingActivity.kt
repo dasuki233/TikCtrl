@@ -1,5 +1,6 @@
 package com.tikctrl.app
 
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.ArrayAdapter
@@ -7,20 +8,93 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.google.android.material.snackbar.Snackbar
 
 class GestureMappingActivity : AppCompatActivity() {
-    private lateinit var container: LinearLayout
+    private lateinit var gestureContainer: LinearLayout
+    private lateinit var rootLayout: LinearLayout
+
+    private val exportLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val json = ConfigManager.exportToJson(this)
+                contentResolver.openOutputStream(uri)?.use { os ->
+                    os.write(json.toByteArray())
+                }
+                Snackbar.make(rootLayout, getString(R.string.export_success), Snackbar.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Snackbar.make(rootLayout, getString(R.string.export_failed), Snackbar.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private val importLauncher = registerForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val json = contentResolver.openInputStream(uri)?.use { input ->
+                    input.bufferedReader().use { it.readText() }
+                } ?: run {
+                    Snackbar.make(rootLayout, getString(R.string.import_failed, "Read file failed"), Snackbar.LENGTH_SHORT).show()
+                    return@let
+                }
+
+                AlertDialog.Builder(this)
+                    .setTitle(getString(R.string.dialog_import_title))
+                    .setMessage(getString(R.string.dialog_import_message))
+                    .setPositiveButton(getString(R.string.confirm)) { dialog, _ ->
+                        val result = ConfigManager.importFromJson(this, json)
+                        if (result.success) {
+                            Snackbar.make(
+                                rootLayout,
+                                getString(R.string.import_success, result.gestureCount, result.settingsCount),
+                                Snackbar.LENGTH_SHORT
+                            ).show()
+                            recreate()
+                        } else {
+                            Snackbar.make(
+                                rootLayout,
+                                getString(R.string.import_failed, result.errorMessage ?: "Unknown error"),
+                                Snackbar.LENGTH_LONG
+                            ).show()
+                        }
+                        dialog.dismiss()
+                    }
+                    .setNegativeButton(getString(R.string.cancel)) { dialog, _ ->
+                        dialog.dismiss()
+                    }
+                    .show()
+            } catch (e: Exception) {
+                Snackbar.make(rootLayout, getString(R.string.import_failed, e.message ?: "Error"), Snackbar.LENGTH_LONG).show()
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_gesture_mapping)
 
-        container = findViewById(R.id.gesture_mappings_container)
+        gestureContainer = findViewById(R.id.gesture_mappings_container)
+        rootLayout = findViewById(R.id.container)
         initStatistics()
 
         val btnReset: Button = findViewById(R.id.btn_reset_defaults)
+        val btnExport: Button = findViewById(R.id.btn_export_config)
+        val btnImport: Button = findViewById(R.id.btn_import_config)
+
+        btnExport.setOnClickListener {
+            exportLauncher.launch(getString(R.string.config_file_name))
+        }
+
+        btnImport.setOnClickListener {
+            importLauncher.launch(arrayOf("application/json", "*/*"))
+        }
 
         // Build ordered list of actions for spinner (display names are localized)
         val actionList = GestureMappingManager.getAllActionsForDisplay()
@@ -54,10 +128,19 @@ class GestureMappingActivity : AppCompatActivity() {
                 }
 
                 // EditText for action-specific parameter (e.g., share target name)
+                val paramDesc = TextView(this).apply {
+                    text = getString(R.string.mapping_share_targets_desc)
+                    setTextColor(androidx.core.content.ContextCompat.getColor(this@GestureMappingActivity, R.color.color_text_secondary))
+                    textSize = 12f
+                    visibility = android.view.View.GONE
+                    setPadding(dp(16), dp(10), dp(16), 0)
+                }
+
                 val paramInput = android.widget.EditText(this).apply {
                     layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                    hint = "Share targets, optional, separated by commas"
+                    setHint(R.string.mapping_share_targets_hint)
                     visibility = android.view.View.GONE
+                    setPadding(dp(16), dp(8), dp(16), dp(8))
                 }
 
                 val adapter = ArrayAdapter(this, R.layout.spinner_item_dark, actionLabels)
@@ -77,10 +160,12 @@ class GestureMappingActivity : AppCompatActivity() {
                         GestureMappingManager.setActionForGesture(this@GestureMappingActivity, gesture, sel)
                         // Show/hide param input when SHARE selected
                         if (sel == GestureMappingManager.Action.SHARE) {
+                            paramDesc.visibility = android.view.View.VISIBLE
                             paramInput.visibility = android.view.View.VISIBLE
                             val existing = GestureMappingManager.getActionParam(this@GestureMappingActivity, gesture)
                             paramInput.setText(existing ?: "")
                         } else {
+                            paramDesc.visibility = android.view.View.GONE
                             paramInput.visibility = android.view.View.GONE
                         }
                     }
@@ -90,15 +175,21 @@ class GestureMappingActivity : AppCompatActivity() {
 
                 rowLayout.addView(tv)
                 rowLayout.addView(spinner)
-                // Add param input below the spinner in the container (separate row)
+                // Add param description and input below the spinner (separate rows)
+                val paramDescRow = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+                }
+                paramDescRow.addView(paramDesc)
                 val paramRow = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL
                     layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-                    setPadding(0, 4, 0, 4)
+                    setPadding(dp(12), 0, dp(12), dp(8))
                 }
                 paramRow.addView(paramInput)
-                container.addView(rowLayout)
-                container.addView(paramRow)
+                gestureContainer.addView(rowLayout)
+                gestureContainer.addView(paramDescRow)
+                gestureContainer.addView(paramRow)
 
                 // Save param when focus lost
                 paramInput.setOnFocusChangeListener { v, hasFocus ->

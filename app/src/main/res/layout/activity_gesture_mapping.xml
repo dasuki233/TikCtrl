@@ -121,5 +121,31 @@
             android:backgroundTint="@color/color_button_bg"
             android:text="@string/mapping_reset_defaults"
             android:textColor="@color/color_button_text" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_export_config"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/color_primary"
+                android:text="@string/mapping_export_config"
+                android:textColor="@android:color/white" />
+
+            <Button
+                android:id="@+id/btn_import_config"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/color_primary"
+                android:text="@string/mapping_import_config"
+                android:textColor="@android:color/white" />
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>

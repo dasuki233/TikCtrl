@@ -76,6 +76,11 @@
     <string name="home_total_count">总识别次数</string>
     <string name="home_my_mappings">我的手势映射</string>
     <string name="home_reset_all">重置所有手势</string>
+    <string name="dialog_reset_confirm_title">重置所有手势</string>
+    <string name="dialog_reset_confirm_message">确定要将所有手势映射重置为空吗？</string>
+    <string name="dialog_reset_done">所有手势已重置</string>
+    <string name="confirm">确定</string>
+    <string name="cancel">取消</string>
 
     <!-- Gesture Mapping -->
     <string name="mapping_title">手势映射助手</string>
@@ -83,6 +88,17 @@
     <string name="mapping_total_count">总识别次数</string>
     <string name="mapping_gesture_actions">手势动作</string>
     <string name="mapping_reset_defaults">恢复默认</string>
+    <string name="mapping_share_targets_hint">例如：张三, 李四, 妈妈</string>
+    <string name="mapping_share_targets_desc">多个目标用逗号（,）分隔</string>
+    <string name="mapping_export_config">导出配置</string>
+    <string name="mapping_import_config">导入配置</string>
+    <string name="dialog_import_title">导入配置</string>
+    <string name="dialog_import_message">这将覆盖当前的手势映射和设置，是否继续？</string>
+    <string name="export_success">配置导出成功</string>
+    <string name="export_failed">导出失败</string>
+    <string name="import_success">配置已导入：%1$d 个手势，%2$d 项设置</string>
+    <string name="import_failed">导入失败：%1$s</string>
+    <string name="config_file_name">tikctrl_config.json</string>
 
     <!-- Gesture names (Chinese) -->
     <string name="gesture_none">未检测到手势</string>
