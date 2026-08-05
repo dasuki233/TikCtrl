@@ -72,14 +72,6 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
     /** Blocking ML operations are performed using this executor */
     private lateinit var backgroundExecutor: ExecutorService
 
-    // Gesture debounce / stability controls  修改命令执行时长
-    private var lastDetectedGesture: GestureClassifier.Gesture? = null
-    private var consecutiveDetections = 0
-    private val requiredConsecutiveDetections = 3 // was 3 -> lower for faster response
-    private var lastSentGesture: GestureClassifier.Gesture? = null
-    private var lastSentTimeMs: Long = 0
-    private val gestureCooldownMs: Long = 1500 // was 1500 -> shorter cooldown for faster repeat
-
     // FPS calculation
     private var frameCount = 0
     private var lastAnalyzeTimeMs: Long = 0
@@ -117,6 +109,17 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
 
             // Close the HandLandmarkerHelper and release resources
             backgroundExecutor.execute { handLandmarkerHelper.clearHandLandmarker() }
+        }
+
+        // 通知 HandGestureService 重新绑定相机 use cases
+        // CameraFragment 的 bindCameraUseCases 调用了 unbindAll，会解绑 service 的 use cases
+        // 离开预览页时需要让 service 恢复相机绑定，否则悬浮窗画面会停止
+        try {
+            val intent = android.content.Intent(HandGestureService.ACTION_REBIND_CAMERA)
+            intent.setPackage(requireContext().packageName)
+            requireContext().sendBroadcast(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send ACTION_REBIND_CAMERA: ${e.message}")
         }
     }
 
@@ -493,36 +496,15 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
             
             Log.d(TAG, "Classified gesture (UI path): $gesture")
 
+            // 更新 UI 显示当前手势
             activity?.runOnUiThread {
                 if (_fragmentCameraBinding != null) {
                     fragmentCameraBinding.tvCurrentGesture.text = getGestureDisplayName(gesture)
                 }
             }
 
-            // 检查是否在冷却期内（1.5秒）
-            val now = System.currentTimeMillis()
-            if ((now - lastSentTimeMs) < 1500) {
-                Log.d(TAG, "⏳ 手势冷却中，跳过识别: $gesture")
-                return  // 在冷却期，不再发送广播
-            }
-
-            if (gesture != GestureClassifier.Gesture.NONE) {
-                // 记录当前时间，进入冷却状态
-                lastSentTimeMs = now
-
-                // 发送广播
-                val intent = android.content.Intent(
-                    com.tikctrl.app.HandGestureService.ACTION_GESTURE
-                )
-                intent.putExtra(
-                    com.tikctrl.app.HandGestureService.EXTRA_GESTURE,
-                    gesture.name
-                )
-                intent.setPackage(requireContext().packageName)
-                requireContext().sendBroadcast(intent)
-
-                Log.d(TAG, "✅ 检测到手势，发送广播: ${gesture.name}")
-            }
+            // 预览页面只显示手势名称，不执行操作
+            // 手势执行由 HandGestureService 负责
 
             // 打印指尖坐标，方便调试
             try {

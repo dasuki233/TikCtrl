@@ -23,6 +23,7 @@ import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Observer
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.tikctrl.app.databinding.ActivityMainBinding
@@ -35,6 +36,7 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.core.app.ActivityCompat
 import android.graphics.Color
+import android.util.Log
 import android.widget.LinearLayout
 import android.widget.ImageView
 import android.widget.TextView
@@ -94,6 +96,14 @@ class MainActivity : AppCompatActivity() {
         setContentView(activityMainBinding.root)
 
         applySavedThemeColor()
+
+        // 观察服务运行状态：当服务停止时（无论是 stopSelf() 还是 stopService()），
+        // 都要重置 startedGestureService 标志，否则再次通过开关启动服务时会被拦截
+        HandGestureService.serviceRunning.observe(this, Observer { running ->
+            if (!running) {
+                startedGestureService = false
+            }
+        })
 
         val navHostFragment =
             supportFragmentManager.findFragmentById(R.id.fragment_container) as NavHostFragment
@@ -239,10 +249,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun startHandGestureService() {
+        // 双保险：即使 startedGestureService 为 true，也要检查服务是否实际运行
+        // （悬浮窗叉关闭按钮调用 stopSelf() 时，LiveData 重置可能存在时序延迟）
+        if (startedGestureService && isServiceRunning(HandGestureService::class.java)) return
         val intent = Intent(this, HandGestureService::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
+            try {
+                startForegroundService(intent)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "startForegroundService failed: ${e.message}")
+                try {
+                    startService(intent)
+                } catch (e2: Exception) {
+                    Log.e("MainActivity", "fallback startService failed: ${e2.message}")
+                }
+            }
         } else {
             startService(intent)
         }
@@ -250,8 +272,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun stopHandGestureService() {
+        if (!startedGestureService) return
         val intent = Intent(this, HandGestureService::class.java)
-        stopService(intent)
+        try {
+            stopService(intent)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "stopService failed: ${e.message}")
+        }
         startedGestureService = false
     }
 

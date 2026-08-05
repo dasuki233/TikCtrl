@@ -1,6 +1,5 @@
 package com.tikctrl.app
 
-import android.text.method.Touch
 import android.util.Log
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult

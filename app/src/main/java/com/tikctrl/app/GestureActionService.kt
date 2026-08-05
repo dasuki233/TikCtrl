@@ -31,7 +31,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.annotation.RequiresApi
-import androidx.test.uiautomator.UiSelector
 
 class GestureActionService : AccessibilityService() {
 
@@ -41,6 +40,8 @@ class GestureActionService : AccessibilityService() {
 
     // Handler to post UI work to main thread
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var isReceiverRegistered = false
+    private var isServiceDestroyed = false
 
     private val gestureReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -62,13 +63,21 @@ class GestureActionService : AccessibilityService() {
     }
 
     override fun onServiceConnected() {
+        if (isServiceDestroyed) return
         super.onServiceConnected()
         android.util.Log.i("GestureActionService", "Accessibility service connected; registering gesture receiver")
-        val filter = IntentFilter(HandGestureService.ACTION_GESTURE)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            registerReceiver(gestureReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(gestureReceiver, filter)
+        if (!isReceiverRegistered) {
+            val filter = IntentFilter(HandGestureService.ACTION_GESTURE)
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    registerReceiver(gestureReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+                } else {
+                    registerReceiver(gestureReceiver, filter)
+                }
+                isReceiverRegistered = true
+            } catch (e: Exception) {
+                android.util.Log.w("GestureActionService", "registerReceiver failed: ${e.message}")
+            }
         }
         // 初始化手势统计
         GestureStatistics.init(this)
@@ -1228,14 +1237,44 @@ class GestureActionService : AccessibilityService() {
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
-        unregisterReceiver(gestureReceiver)
-        // cancel any background coroutines when service unbinds
+        cleanupResources()
+        return super.onUnbind(intent)
+    }
+
+    override fun onDestroy() {
+        cleanupResources()
+        super.onDestroy()
+    }
+
+    private fun cleanupResources() {
+        if (isServiceDestroyed) return
+        isServiceDestroyed = true
+
+        if (isReceiverRegistered) {
+            try {
+                unregisterReceiver(gestureReceiver)
+            } catch (e: Exception) {
+                android.util.Log.w("GestureActionService", "unregisterReceiver failed: ${e.message}")
+            } finally {
+                isReceiverRegistered = false
+            }
+        }
+
+        try {
+            mainHandler.removeCallbacksAndMessages(null)
+        } catch (e: Exception) {
+            android.util.Log.w("GestureActionService", "removeCallbacksAndMessages failed: ${e.message}")
+        }
+
         try {
             serviceJob.cancel()
         } catch (e: Exception) {
-            // ignore
+            android.util.Log.w("GestureActionService", "serviceJob.cancel failed: ${e.message}")
         }
-        return super.onUnbind(intent)
+
+        expectingContentChange = false
+        contentChangeLatch?.countDown()
+        contentChangeLatch = null
     }
 
     // Visual feedback: show a full-screen overlay with colored border that briefly flashes.

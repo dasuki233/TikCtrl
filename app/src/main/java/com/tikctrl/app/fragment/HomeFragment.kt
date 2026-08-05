@@ -25,6 +25,22 @@ import com.tikctrl.app.R
 
 class HomeFragment : Fragment() {
     private var isUpdatingSwitch = false
+    private var lastToggleTimeMs = 0L
+    private var lastToastShownMs = 0L
+    private var lastToastMsg = ""
+
+    companion object {
+        private const val TOGGLE_DEBOUNCE_MS = 1500L
+        private const val TOAST_DEDUPE_MS = 800L
+    }
+
+    private fun showToast(msg: String) {
+        val now = System.currentTimeMillis()
+        if (msg == lastToastMsg && now - lastToastShownMs < TOAST_DEDUPE_MS) return
+        lastToastMsg = msg
+        lastToastShownMs = now
+        android.widget.Toast.makeText(requireContext(), msg, android.widget.Toast.LENGTH_SHORT).show()
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -52,31 +68,54 @@ class HomeFragment : Fragment() {
 
                 val activity = activity as? MainActivity
                 if (activity == null) {
-                    android.widget.Toast.makeText(requireContext(), "无法获取主界面", android.widget.Toast.LENGTH_SHORT).show()
+                    showToast("无法获取主界面")
+                    // 回滚开关状态
+                    isUpdatingSwitch = true
+                    serviceSwitch.isChecked = !checked
+                    isUpdatingSwitch = false
                     return@setOnCheckedChangeListener
                 }
                 
+                val now = System.currentTimeMillis()
+                if (now - lastToggleTimeMs < TOGGLE_DEBOUNCE_MS) {
+                    // 防抖期间：回滚开关状态，给用户明确的视觉反馈
+                    isUpdatingSwitch = true
+                    serviceSwitch.isChecked = !checked
+                    isUpdatingSwitch = false
+                    showToast("操作过于频繁，请稍后再试")
+                    return@setOnCheckedChangeListener
+                }
+                lastToggleTimeMs = now
+
                 if (checked) {
                     val hasCameraPermission = ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
                     val hasOverlayPermission = android.provider.Settings.canDrawOverlays(requireContext())
-                    
+
                     if (hasCameraPermission && hasOverlayPermission) {
                         activity.startHandGestureService()
-                        android.widget.Toast.makeText(requireContext(), "悬浮窗已开启", android.widget.Toast.LENGTH_SHORT).show()
+                        if (isServiceRunning(HandGestureService::class.java)) {
+                            showToast("悬浮窗已开启")
+                        } else {
+                            isUpdatingSwitch = true
+                            serviceSwitch.isChecked = false
+                            isUpdatingSwitch = false
+                        }
                     } else {
-                        isChecked = false
+                        isUpdatingSwitch = true
+                        serviceSwitch.isChecked = false
+                        isUpdatingSwitch = false
                         if (!hasCameraPermission) {
-                            android.widget.Toast.makeText(requireContext(), "请先授予相机权限", android.widget.Toast.LENGTH_SHORT).show()
+                            showToast("请先授予相机权限")
                             requestPermissions(arrayOf(android.Manifest.permission.CAMERA), 1001)
                         } else if (!hasOverlayPermission) {
-                            android.widget.Toast.makeText(requireContext(), "请先授予悬浮窗权限", android.widget.Toast.LENGTH_SHORT).show()
+                            showToast("请先授予悬浮窗权限")
                             val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${requireContext().packageName}"))
                             startActivity(intent)
                         }
                     }
                 } else {
                     activity.stopHandGestureService()
-                    android.widget.Toast.makeText(requireContext(), "悬浮窗已关闭", android.widget.Toast.LENGTH_SHORT).show()
+                    showToast("悬浮窗已关闭")
                 }
             }
         }
@@ -172,7 +211,7 @@ class HomeFragment : Fragment() {
         
         // 设置今日统计
         dialogView.findViewById<TextView>(R.id.tv_today_count).text = todayCount.toString()
-        dialogView.findViewById<TextView>(R.id.tv_total_count).text = "Total: $totalCount"
+        dialogView.findViewById<TextView>(R.id.tv_total_count).text = getString(R.string.stat_total, totalCount)
 
         // 填充历史记录
         val historyContainer = dialogView.findViewById<LinearLayout>(R.id.history_container)
@@ -345,12 +384,12 @@ class HomeFragment : Fragment() {
                     isUpdatingSwitch = true
                     view?.findViewById<SwitchCompat>(R.id.switch_visual_feedback)?.isChecked = true
                     isUpdatingSwitch = false
-                    android.widget.Toast.makeText(requireContext(), "悬浮窗已开启", android.widget.Toast.LENGTH_SHORT).show()
+                    showToast("悬浮窗已开启")
                 } else {
-                    android.widget.Toast.makeText(requireContext(), "请先授予悬浮窗权限", android.widget.Toast.LENGTH_SHORT).show()
+                    showToast("请先授予悬浮窗权限")
                 }
             } else {
-                android.widget.Toast.makeText(requireContext(), "相机权限被拒绝", android.widget.Toast.LENGTH_SHORT).show()
+                showToast("相机权限被拒绝")
                 view?.findViewById<SwitchCompat>(R.id.switch_visual_feedback)?.isChecked = false
             }
         }

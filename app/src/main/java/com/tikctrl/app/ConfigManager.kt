@@ -102,6 +102,13 @@ object ConfigManager {
                 val mappingPrefs = context.getSharedPreferences(PREFS_MAPPINGS, Context.MODE_PRIVATE)
                 val editor = mappingPrefs.edit()
 
+                // 清空旧映射数据，确保导入的配置完全替换旧配置
+                mappingPrefs.all.keys.forEach { key ->
+                    if (key.startsWith("mapping_") || key.startsWith("param_") || key.startsWith("label_")) {
+                        editor.remove(key)
+                    }
+                }
+
                 mappings.optJSONObject("gestures")?.let { gestures ->
                     val keys = gestures.keys()
                     while (keys.hasNext()) {
@@ -134,6 +141,11 @@ object ConfigManager {
             root.optJSONObject("settings")?.let { settings ->
                 val settingsPrefs = context.getSharedPreferences(PREFS_SETTINGS, Context.MODE_PRIVATE)
                 val editor = settingsPrefs.edit()
+
+                // 清空可导出设置的旧值，确保导入的配置完全替换旧设置
+                EXPORTABLE_SETTINGS.forEach { key ->
+                    editor.remove(key)
+                }
 
                 val keys = settings.keys()
                 while (keys.hasNext()) {

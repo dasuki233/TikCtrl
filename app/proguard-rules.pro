@@ -1,21 +1,44 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# MediaPipe - keep all classes and native methods
+-keep class com.google.mediapipe.** { *; }
+-keep class com.google.mediapipe.tasks.** { *; }
+-keep class com.google.mediapipe.framework.** { *; }
+-keep class com.google.mediapipe.components.** { *; }
+-keep class com.google.mediapipe.formats.** { *; }
+-keep class com.google.mediapipe.solutions.** { *; }
+-keepclassmembers class com.google.mediapipe.** { *; }
+-keepclasseswithmembernames class com.google.mediapipe.** { *; }
+-dontwarn com.google.mediapipe.**
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# CameraX - keep key classes
+-keep class androidx.camera.** { *; }
+-keepclassmembers class androidx.camera.** { *; }
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# Kotlin coroutines
+-keepclassmembers class kotlinx.coroutines.** { *; }
+-keepclassmembers class kotlin.coroutines.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Accessibility service
+-keep class com.tikctrl.app.GestureActionService { *; }
+-keep class com.tikctrl.app.HandGestureService { *; }
+-keep class com.tikctrl.app.GestureClassifier { *; }
+-keep class com.tikctrl.app.GestureClassifier$Gesture { *; }
+-keep class com.tikctrl.app.GestureMappingManager { *; }
+-keep class com.tikctrl.app.GestureMappingManager$Action { *; }
+-keep class com.tikctrl.app.GestureMappingManager$SingleHandMode { *; }
+-keep class com.tikctrl.app.ConfigManager { *; }
+
+# SharedPreferences keys (reflection access)
+-keepclassmembers class com.tikctrl.app.** { *; }
+
+# MPImage and BitmapImageBuilder (used by reflection in MediaPipe)
+-keep class com.google.mediapipe.framework.image.** { *; }
+
+# Native methods
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+# Keep Parcelable
+-keep class * implements android.os.Parcelable {
+    public static final android.os.Parcelable$Creator *;
+}

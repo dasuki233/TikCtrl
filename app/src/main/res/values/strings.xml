@@ -179,4 +179,11 @@
 
     <!-- Placeholders -->
     <string name="tv_gallery_placeholder">Tap + to add an image or video.</string>
+
+    <!-- Foreground service -->
+    <string name="hand_gesture_service_name">Hand Gesture Service</string>
+    <string name="hand_gesture_service_text">Recognizing gestures…</string>
+
+    <!-- Statistics -->
+    <string name="stat_total">Total: %1$d</string>
 </resources>

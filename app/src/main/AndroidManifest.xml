@@ -1,10 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:dist="http://schemas.android.com/apk/distribution"
     xmlns:tools="http://schemas.android.com/tools">
-
-    <!-- Instant App 支持 -->
-    <dist:module dist:instant="true" />
 
     <!-- 必需的硬件特性 -->
     <uses-feature android:name="android.hardware.camera" />
@@ -69,7 +65,7 @@
         <!-- 手势映射配置界面 -->
         <activity
             android:name=".GestureMappingActivity"
-            android:exported="true" />
+            android:exported="false" />
 
 
     </application>

@@ -179,4 +179,11 @@
 
     <!-- Placeholders -->
     <string name="tv_gallery_placeholder">点击 + 添加图片或视频。</string>
+
+    <!-- Foreground service -->
+    <string name="hand_gesture_service_name">手势识别服务</string>
+    <string name="hand_gesture_service_text">识别手势中…</string>
+
+    <!-- Statistics -->
+    <string name="stat_total">总计: %1$d</string>
 </resources>

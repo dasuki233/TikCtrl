@@ -28,8 +28,10 @@ import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
+import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.concurrent.ExecutorService
+import android.content.res.Configuration
 import android.view.WindowManager
 import android.view.View
 import android.view.LayoutInflater
@@ -52,14 +54,17 @@ class HandGestureService : LifecycleService() {
         private const val CHANNEL_ID = "hand_gesture_channel"   // 通知渠道ID
         const val ACTION_GESTURE = "com.tikctrl.app.ACTION_GESTURE"    // 广播动作
         const val EXTRA_GESTURE = "gesture"     // 广播中携带手势数据的键名
+        const val ACTION_REBIND_CAMERA = "com.tikctrl.app.ACTION_REBIND_CAMERA"  // 通知服务重新绑定相机
 
         val serviceRunning = MutableLiveData<Boolean>()
     }
 
+    @Volatile
     private var handLandmarker: HandLandmarker? = null
     private var cameraExecutor: ExecutorService? = null
     private val gestureClassifier = GestureClassifier()
     private var isDestroyed = false
+    private var isForegroundStarted = false
     // Floating window
     private var windowManager: WindowManager? = null
     private var floatingView: View? = null
@@ -100,10 +105,29 @@ class HandGestureService : LifecycleService() {
     private var lastSentTimeMs: Long = 0
     private val gestureCooldownMs: Long = 1500  // 发送广播冷却
     private var isCreatingFloatingPreview = false
+    private var isWindowRemovalInProgress = false
     private var lastAnalyzeTimeMs: Long = 0
     private val powerSavingIntervalMs: Long = 100 // 10 FPS = 100ms interval
     private var hasFallenBackToCpu = false
     private val pendingImageProxies = java.util.concurrent.ConcurrentLinkedQueue<ImageProxy>()
+
+    // 监听 CameraFragment 离开时发来的重新绑定相机广播
+    private val rebindCameraReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ACTION_REBIND_CAMERA) {
+                Log.d(TAG, "Received ACTION_REBIND_CAMERA, rebinding camera use cases")
+                // 延迟执行，确保 CameraFragment 的 use cases 已被完全解绑
+                mainHandler.postDelayed({
+                    try {
+                        bindCameraUseCases()
+                        applyFloatingPreviewMirror()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Rebind camera after broadcast failed: ${e.message}")
+                    }
+                }, 300)
+            }
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -113,7 +137,20 @@ class HandGestureService : LifecycleService() {
         prefs = getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE).also {
             it.registerOnSharedPreferenceChangeListener(prefsListener)
         }
-        startForegroundService()
+        // 应用语言设置，确保 Service 的 getString() 返回正确的语言
+        applyLanguage()
+        // 注册广播接收器，监听 CameraFragment 离开时发来的重新绑定相机请求
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(rebindCameraReceiver, android.content.IntentFilter(ACTION_REBIND_CAMERA), Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(rebindCameraReceiver, android.content.IntentFilter(ACTION_REBIND_CAMERA))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to register rebindCameraReceiver: ${e.message}")
+        }
+        // 必须尽早进入前台，避免 Android 8+ 在快速开关时直接抛出异常
+        ensureForegroundStarted()
         setupHandLandmarker()
         
         val hasCameraPermission = ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
@@ -136,6 +173,7 @@ class HandGestureService : LifecycleService() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         Log.d(TAG, "HandGestureService onStartCommand() called")
+        ensureForegroundStarted()
         
         if (floatingView == null) {
             val hasCameraPermission = ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
@@ -164,28 +202,44 @@ class HandGestureService : LifecycleService() {
     }
 
     // 启动前台服务，显示持续运行的通知
-    private fun startForegroundService() {
-        // Android 8.0及以上需要创建通知渠道
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Hand Gesture Service", // 渠道名称
-                NotificationManager.IMPORTANCE_LOW  // 低重要性，不会打扰用户
-            )
-            val manager = getSystemService(NotificationManager::class.java)
-            manager.createNotificationChannel(channel)
-        }
+    private fun ensureForegroundStarted() {
+        if (isForegroundStarted) return
 
-        // 构建通知
-        val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Hand Gesture Service")
-            .setContentText("识别手势中…")
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .build()
-        startForeground(1, notification)    // 启动前台服务，ID为1
+        try {
+            // Android 8.0及以上需要创建通知渠道
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    CHANNEL_ID,
+                    getString(R.string.hand_gesture_service_name), // 渠道名称
+                    NotificationManager.IMPORTANCE_LOW  // 低重要性，不会打扰用户
+                )
+                val manager = getSystemService(NotificationManager::class.java)
+                manager.createNotificationChannel(channel)
+            }
+
+            // 构建通知
+            val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
+                .setContentTitle(getString(R.string.hand_gesture_service_name))
+                .setContentText(getString(R.string.hand_gesture_service_text))
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .build()
+            startForeground(1, notification)    // 启动前台服务，ID为1
+            isForegroundStarted = true
+        } catch (e: Exception) {
+            Log.e(TAG, "ensureForegroundStarted failed: ${e.message}", e)
+        }
     }
 
     // 设置手部关键点检测器
+    private fun applyLanguage() {
+        val language = prefs?.getString("language", "zh") ?: "zh"
+        val locale = Locale(language)
+        Locale.setDefault(locale)
+        val config = Configuration()
+        config.locale = locale
+        resources.updateConfiguration(config, resources.displayMetrics)
+    }
+
     private fun setupHandLandmarker() {
         hasFallenBackToCpu = false
         try {
@@ -254,6 +308,11 @@ class HandGestureService : LifecycleService() {
         currentCameraSelector = if (useFrontCamera) CameraSelector.DEFAULT_FRONT_CAMERA else CameraSelector.DEFAULT_BACK_CAMERA
         
         val cameraProviderFuture: ListenableFuture<ProcessCameraProvider> = ProcessCameraProvider.getInstance(this)
+        val executor = cameraExecutor
+        if (executor == null) {
+            Log.w(TAG, "cameraExecutor is null, skip starting camera")
+            return
+        }
         cameraProviderFuture.addListener({
             cameraProvider = cameraProviderFuture.get()
             // 配置图像分析器，请求RGBA_8888格式以便高效转换为Bitmap
@@ -266,22 +325,20 @@ class HandGestureService : LifecycleService() {
                     Log.e(TAG, "Camera bind failed: ${e.message}")
                 }
             }
-
-        }, cameraExecutor!!)
+        }, executor)
     }
     
     private fun applyFloatingPreviewMirror() {
         val mirrorMode = prefs?.getBoolean("mirror_mode", true) ?: true
         val useFrontCamera = prefs?.getBoolean("front_camera", true) ?: true
         val shouldMirror = useFrontCamera && mirrorMode
-        
-        if (previewView != null) {
-            previewView!!.post {
-                try {
-                    previewView!!.scaleX = if (shouldMirror) -1f else 1f
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to apply floating preview mirror: ${e.message}")
-                }
+
+        val currentPreviewView = previewView ?: return
+        currentPreviewView.post {
+            try {
+                currentPreviewView.scaleX = if (shouldMirror) -1f else 1f
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to apply floating preview mirror: ${e.message}")
             }
         }
     }
@@ -291,10 +348,16 @@ class HandGestureService : LifecycleService() {
         val provider = cameraProvider ?: return
 
         val analyzer = ImageAnalysis.Builder()
+            .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
             .build()
 
-        analyzer.setAnalyzer(cameraExecutor!!) { imageProxy: ImageProxy ->
+        val executor = cameraExecutor
+        if (executor == null) {
+            Log.w(TAG, "cameraExecutor is null, skip binding")
+            return
+        }
+        analyzer.setAnalyzer(executor) { imageProxy: ImageProxy ->
             try {
                 if (isDestroyed || handLandmarker == null) {
                     imageProxy.close()
@@ -413,6 +476,34 @@ class HandGestureService : LifecycleService() {
 
             val closeBtn = container.findViewById<ImageButton>(R.id.btn_close)
             closeBtn.setOnClickListener {
+                if (isDestroyed || isWindowRemovalInProgress) return@setOnClickListener
+                isWindowRemovalInProgress = true
+                try {
+                    closeBtn.isEnabled = false
+                } catch (_: Exception) {}
+                // 直接移除视图，不延迟
+                try {
+                    cameraProvider?.unbindAll()
+                } catch (_: Exception) {}
+                try {
+                    val wm = windowManager
+                    val fv = floatingView
+                    val mv = minimizedView
+                    if (fv != null && wm != null) {
+                        try { wm.removeView(fv) } catch (_: Exception) {
+                            try { wm.removeViewImmediate(fv) } catch (_: Exception) {}
+                        }
+                    }
+                    if (mv != null && wm != null) {
+                        try { wm.removeView(mv) } catch (_: Exception) {
+                            try { wm.removeViewImmediate(mv) } catch (_: Exception) {}
+                        }
+                    }
+                } catch (_: Exception) {}
+                floatingView = null
+                minimizedView = null
+                previewView = null
+                layoutParams = null
                 stopSelf()
             }
 
@@ -427,15 +518,15 @@ class HandGestureService : LifecycleService() {
                 when (mode) {
                     GestureMappingManager.SingleHandMode.BOTH -> {
                         singleHandBtn.setImageResource(R.drawable.ic_baseline_hand_24)
-                        singleHandBtn.contentDescription = "双手模式"
+                        singleHandBtn.contentDescription = getString(R.string.floating_single_hand_both)
                     }
                     GestureMappingManager.SingleHandMode.LEFT -> {
                         singleHandBtn.setImageResource(R.drawable.ic_baseline_arrow_back_24)
-                        singleHandBtn.contentDescription = "仅左手"
+                        singleHandBtn.contentDescription = getString(R.string.floating_single_hand_left)
                     }
                     GestureMappingManager.SingleHandMode.RIGHT -> {
                         singleHandBtn.setImageResource(R.drawable.ic_baseline_arrow_forward_24)
-                        singleHandBtn.contentDescription = "仅右手"
+                        singleHandBtn.contentDescription = getString(R.string.floating_single_hand_right)
                     }
                 }
             }
@@ -462,30 +553,33 @@ class HandGestureService : LifecycleService() {
 
             val flag = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
             val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE
-            layoutParams = WindowManager.LayoutParams(
+            val newLayoutParams = WindowManager.LayoutParams(
                 480,
                 640,
                 type,
                 flag,
                 PixelFormat.TRANSLUCENT
             )
-            layoutParams!!.gravity = Gravity.TOP or Gravity.START
-            layoutParams!!.x = 50
-            layoutParams!!.y = 200
+            newLayoutParams.gravity = Gravity.TOP or Gravity.START
+            newLayoutParams.x = 50
+            newLayoutParams.y = 200
 
             val prefs = getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
             val alphaPercent = prefs.getInt("floating_alpha", 70)
-            layoutParams!!.alpha = alphaPercent / 100f
+            newLayoutParams.alpha = alphaPercent / 100f
+            layoutParams = newLayoutParams
 
             var initialX = 0
             var initialY = 0
             var touchX = 0f
             var touchY = 0f
-            container.setOnTouchListener { v, event ->
+            container.setOnTouchListener { _, event ->
+                if (isDestroyed || isWindowRemovalInProgress) return@setOnTouchListener false
+                val lp = layoutParams ?: return@setOnTouchListener false
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        initialX = layoutParams!!.x
-                        initialY = layoutParams!!.y
+                        initialX = lp.x
+                        initialY = lp.y
                         touchX = event.rawX
                         touchY = event.rawY
                         true
@@ -493,10 +587,10 @@ class HandGestureService : LifecycleService() {
                     MotionEvent.ACTION_MOVE -> {
                         val dx = (event.rawX - touchX).toInt()
                         val dy = (event.rawY - touchY).toInt()
-                        layoutParams!!.x = initialX + dx
-                        layoutParams!!.y = initialY + dy
+                        lp.x = initialX + dx
+                        lp.y = initialY + dy
                         try {
-                            windowManager?.updateViewLayout(container!!, layoutParams)
+                            windowManager?.updateViewLayout(container!!, lp)
                         } catch (_: Exception) {}
                         true
                     }
@@ -505,10 +599,21 @@ class HandGestureService : LifecycleService() {
             }
 
             minimizeBtn.setOnClickListener {
+                if (isDestroyed || isWindowRemovalInProgress) return@setOnClickListener
+                val lp = layoutParams
+                if (lp == null || container == null) return@setOnClickListener
                 try {
-                    val savedX = layoutParams!!.x
-                    val savedY = layoutParams!!.y
-                    windowManager?.removeView(container!!)
+                    val savedX = lp.x
+                    val savedY = lp.y
+                    try {
+                        cameraProvider?.unbindAll()
+                    } catch (_: Exception) {}
+                    // 延迟移除视图，等待相机帧停止，避免 BufferQueue abandoned
+                    mainHandler.postDelayed({
+                        try {
+                            windowManager?.removeView(container!!)
+                        } catch (_: Exception) {}
+                    }, 150)
                     floatingView = null
                     previewView = null
 
@@ -564,6 +669,7 @@ class HandGestureService : LifecycleService() {
                     }
 
                     iconView.setOnClickListener {
+                        if (isDestroyed || isWindowRemovalInProgress) return@setOnClickListener
                         try {
                             windowManager?.removeView(iconView)
                         } catch (_: Exception) {}
@@ -615,7 +721,7 @@ class HandGestureService : LifecycleService() {
         val alphaPercent = prefs?.getInt("floating_alpha", 70) ?: return
         val alphaValue = alphaPercent / 100f
         if (layoutParams != null && floatingView != null) {
-            layoutParams!!.alpha = alphaValue
+            layoutParams?.alpha = alphaValue
             try {
                 windowManager?.updateViewLayout(floatingView, layoutParams)
             } catch (e: Exception) {
@@ -623,12 +729,96 @@ class HandGestureService : LifecycleService() {
             }
         }
         if (minimizedLayoutParams != null && minimizedView != null) {
-            minimizedLayoutParams!!.alpha = alphaValue
+            minimizedLayoutParams?.alpha = alphaValue
             try {
                 windowManager?.updateViewLayout(minimizedView, minimizedLayoutParams)
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to update minimized icon alpha: ${e.message}")
             }
+        }
+    }
+
+    private fun detachFloatingViewsSafely(immediate: Boolean = false) {
+        if (!immediate && isWindowRemovalInProgress) return
+        isWindowRemovalInProgress = true
+
+        try {
+            val wm = windowManager
+            val currentFloatingView = floatingView
+            val currentMinimizedView = minimizedView
+            val currentPreviewView = previewView
+
+            // 先解绑相机，停止帧输出
+            try {
+                cameraProvider?.unbindAll()
+            } catch (_: Exception) {}
+
+            // 清理 PreviewView 的监听
+            currentPreviewView?.let { preview ->
+                try {
+                    preview.setOnTouchListener(null)
+                } catch (_: Exception) {}
+                try {
+                    preview.setOnClickListener(null)
+                } catch (_: Exception) {}
+            }
+            currentFloatingView?.let { view ->
+                try {
+                    view.setOnTouchListener(null)
+                } catch (_: Exception) {}
+                try {
+                    view.setOnClickListener(null)
+                } catch (_: Exception) {}
+            }
+            currentMinimizedView?.let { view ->
+                try {
+                    view.setOnTouchListener(null)
+                } catch (_: Exception) {}
+                try {
+                    view.setOnClickListener(null)
+                } catch (_: Exception) {}
+            }
+
+            // 立即移除或延迟移除视图
+            val removalAction = {
+                try {
+                    if (currentFloatingView != null && wm != null) {
+                        try {
+                            wm.removeView(currentFloatingView)
+                        } catch (_: Exception) {
+                            try { wm.removeViewImmediate(currentFloatingView) } catch (_: Exception) {}
+                        }
+                    }
+                    if (currentMinimizedView != null && wm != null) {
+                        try {
+                            wm.removeView(currentMinimizedView)
+                        } catch (_: Exception) {
+                            try { wm.removeViewImmediate(currentMinimizedView) } catch (_: Exception) {}
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "detachFloatingViewsSafely removal failed: ${e.message}")
+                }
+                Unit
+            }
+
+            if (immediate) {
+                removalAction()
+            } else {
+                // 延迟移除视图，等待相机完全停止，避免 BufferQueue abandoned
+                mainHandler.postDelayed(removalAction, 150)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "detachFloatingViewsSafely failed: ${e.message}")
+        } finally {
+            floatingView = null
+            minimizedView = null
+            previewView = null
+            layoutParams = null
+            minimizedLayoutParams = null
+            windowManager = null
+            isCreatingFloatingPreview = false
+            isWindowRemovalInProgress = false
         }
     }
 
@@ -750,17 +940,15 @@ class HandGestureService : LifecycleService() {
             handLandmarker = null
         } catch (e: Exception) { /* ignore */ }
 
-        // Remove floating views and preview safely
-        try {
-            floatingView?.let { windowManager?.removeViewImmediate(it) }
-        } catch (e: Exception) { /* ignore */ }
-
-        try {
-            minimizedView?.let { windowManager?.removeViewImmediate(it) }
-        } catch (e: Exception) { /* ignore */ }
+        // Remove floating views and preview safely (immediate mode for onDestroy)
+        detachFloatingViewsSafely(immediate = true)
 
         try {
             prefs?.unregisterOnSharedPreferenceChangeListener(prefsListener)
+        } catch (e: Exception) { /* ignore */ }
+
+        try {
+            unregisterReceiver(rebindCameraReceiver)
         } catch (e: Exception) { /* ignore */ }
 
         try {
@@ -773,17 +961,16 @@ class HandGestureService : LifecycleService() {
         } catch (e: Exception) { /* ignore */ }
 
         // Clear references to help GC
-        floatingView = null
-        minimizedView = null
-        previewView = null
-        layoutParams = null
         cameraProvider = null
-        windowManager = null
-        isCreatingFloatingPreview = false
 
         try {
-            stopForeground(true)
+            if (isForegroundStarted) {
+                stopForeground(true)
+            }
         } catch (e: Exception) { /* ignore */ }
+
+        // 清理 mainHandler 上所有待执行的回调，防止销毁后延迟操作执行
+        mainHandler.removeCallbacksAndMessages(null)
     }
 }
 
