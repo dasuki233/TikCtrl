@@ -102,19 +102,19 @@
 
     <!-- Gesture names (Chinese) -->
     <string name="gesture_none">未检测到手势</string>
-    <string name="gesture_middle_finger">点赞</string>
-    <string name="gesture_pinky_finger">取消点赞</string>
-    <string name="gesture_index_finger">下一个</string>
-    <string name="gesture_peace_v">比耶</string>
+    <string name="gesture_middle_finger">🖕</string>
+    <string name="gesture_pinky_finger">小拇指</string>
+    <string name="gesture_index_finger">食指</string>
+    <string name="gesture_peace_v">✌️</string>
     <string name="gesture_index_middle_ring">三指</string>
     <string name="gesture_index_middle_ring_pinky">四指</string>
-    <string name="gesture_spider_man_shooter">蜘蛛侠</string>
-    <string name="gesture_spider_shooter_no_thumb">无拇指蜘蛛侠</string>
-    <string name="gesture_ok">OK</string>
-    <string name="gesture_thumb">大拇指</string>
-    <string name="gesture_fox">狐狸</string>
-    <string name="gesture_aki_fox_devil">狐狸</string>
-    <string name="gesture_sixsixsix">666</string>
+    <string name="gesture_spider_man_shooter">🤟</string>
+    <string name="gesture_spider_shooter_no_thumb">🤘</string>
+    <string name="gesture_ok">👌</string>
+    <string name="gesture_thumb">👍</string>
+    <string name="gesture_fox">撕碎它</string>
+    <string name="gesture_aki_fox_devil">撕碎它</string>
+    <string name="gesture_sixsixsix">🤙</string>
 
     <!-- Original gesture names kept for backward compat -->
     <string name="gesture_middle_finger_alt">点赞</string>

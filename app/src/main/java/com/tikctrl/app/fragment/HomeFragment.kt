@@ -300,16 +300,24 @@ class HomeFragment : Fragment() {
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
                 setMargins(dp(12), 0, 0, 0)
             }
-            tag = "actionText" // 用于后续更新
+            tag = "actionText"
         })
 
-        // Spinner 下拉框
+        // Spinner 下拉框（闭合只显示箭头，不显示文字）
         val spinner = Spinner(context, Spinner.MODE_DROPDOWN).apply {
-            layoutParams = LinearLayout.LayoutParams(dp(32), dp(32))
-            adapter = ArrayAdapter(context, R.layout.spinner_item_dark, actionLabels).apply {
-                setDropDownViewResource(R.layout.spinner_dropdown_item_dark)
+            layoutParams = LinearLayout.LayoutParams(dp(44), dp(40))
+            val adapter = object : ArrayAdapter<String>(context, R.layout.spinner_item_dark, actionLabels) {
+                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                    val v = super.getView(position, convertView, parent)
+                    (v as? TextView)?.text = ""
+                    return v
+                }
             }
+            adapter.setDropDownViewResource(R.layout.spinner_dropdown_item_dark)
+            this.adapter = adapter
             background = ContextCompat.getDrawable(context, R.drawable.bg_spinner_dark)
+            setPadding(dp(8), 0, dp(8), 0)
+            dropDownWidth = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
             setSelection(actionList.indexOf(action).coerceAtLeast(0))
         }
 

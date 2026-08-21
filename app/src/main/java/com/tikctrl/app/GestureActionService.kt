@@ -15,12 +15,6 @@ import android.util.Log
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityEvent
-import android.view.WindowManager
-import android.view.View
-import android.graphics.drawable.GradientDrawable
-import android.graphics.PixelFormat
-import android.view.Gravity
-import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
 import java.util.concurrent.CountDownLatch
@@ -1222,17 +1216,13 @@ class GestureActionService : AccessibilityService() {
 
         }
 
-        // Trigger visual feedback border flash when an action was executed (non-NONE)
+        // Update gesture statistics when an action was executed (non-NONE)
         try {
             if (action != GestureMappingManager.Action.NONE) {
-                android.util.Log.i("GestureActionService", "Will trigger visual feedback flash for action=$action")
-                flashBorder()
                 GestureStatistics.incrementCount()
-            } else {
-                android.util.Log.i("GestureActionService", "No visual feedback for NONE action")
             }
         } catch (e: Exception) {
-            android.util.Log.w("GestureActionService", "flashBorder exception: ${e.message}")
+            android.util.Log.w("GestureActionService", "incrementCount exception: ${e.message}")
         }
     }
 
@@ -1275,74 +1265,6 @@ class GestureActionService : AccessibilityService() {
         expectingContentChange = false
         contentChangeLatch?.countDown()
         contentChangeLatch = null
-    }
-
-    // Visual feedback: show a full-screen overlay with colored border that briefly flashes.
-    private fun flashBorder() {
-        try {
-            val prefs = getSharedPreferences("gesture_prefs", MODE_PRIVATE)
-            val enabled = prefs.getBoolean("visual_feedback_enabled", true)
-            if (!enabled) {
-                android.util.Log.d("GestureActionService", "flashBorder: disabled in prefs")
-                return
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !android.provider.Settings.canDrawOverlays(this)) {
-                android.util.Log.d("GestureActionService", "flashBorder: no overlay permission")
-                return
-            }
-
-            val colors = listOf(Color.parseColor("#00FF00"), Color.parseColor("#FF0000"), Color.parseColor("#FFFF00"), Color.parseColor("#00FFFF"), Color.parseColor("#FFFFFF"))
-            val colorIndex = prefs.getInt("feedback_color_index", 0).coerceIn(0, colors.size - 1)
-            val color = colors[colorIndex]
-
-            // All view/window operations must happen on main thread
-            mainHandler.post {
-                try {
-                    val wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-                    val overlayView = View(this)
-
-                    val density = resources.displayMetrics.density
-                    val strokeWidth = (12 * density).toInt()
-                    val cornerRadius = 20 * density
-                    val drawable = GradientDrawable().apply {
-                        shape = GradientDrawable.RECTANGLE
-                        setColor(Color.TRANSPARENT)
-                        setStroke(strokeWidth, color)
-                        this.cornerRadius = cornerRadius
-                    }
-                    overlayView.background = drawable
-
-                    // ensure the overlay can extend into status bar area
-                    val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE
-                    var flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-                    // Allow drawing into status bar area
-                    flags = flags or WindowManager.LayoutParams.FLAG_FULLSCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-
-                    val params = WindowManager.LayoutParams(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT, type, flags, PixelFormat.TRANSLUCENT)
-                    params.gravity = Gravity.TOP or Gravity.START
-                    params.x = 0
-                    params.y = 0
-
-                    try {
-                        wm.addView(overlayView, params)
-                    } catch (e: Exception) {
-                        android.util.Log.w("GestureActionService", "addView overlay failed: ${e.message}")
-                        return@post
-                    }
-
-                    overlayView.alpha = 0f
-                    overlayView.animate().alpha(1f).setDuration(80).withEndAction {
-                        overlayView.animate().alpha(0f).setDuration(220).withEndAction {
-                            try { wm.removeView(overlayView) } catch (_: Exception) {}
-                        }
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.w("GestureActionService", "flashBorder mainHandler exception: ${e.message}")
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.w("GestureActionService", "flashBorder overall exception: ${e.message}")
-        }
     }
 
     // Helper: non-blocking delay reachable from regular functions

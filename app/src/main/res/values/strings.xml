@@ -102,19 +102,19 @@
 
     <!-- Gesture names (English) -->
     <string name="gesture_none">No gesture detected</string>
-    <string name="gesture_middle_finger">Like</string>
-    <string name="gesture_pinky_finger">Unlike</string>
-    <string name="gesture_index_finger">Next</string>
-    <string name="gesture_peace_v">Peace Sign</string>
+    <string name="gesture_middle_finger">FUCK</string>
+    <string name="gesture_pinky_finger">PINKY_FINGER</string>
+    <string name="gesture_index_finger">INDEX_FINGER</string>
+    <string name="gesture_peace_v">Peace</string>
     <string name="gesture_index_middle_ring">Three Fingers</string>
     <string name="gesture_index_middle_ring_pinky">Four Fingers</string>
-    <string name="gesture_spider_man_shooter">Spiderman</string>
-    <string name="gesture_spider_shooter_no_thumb">Spiderman (No Thumb)</string>
+    <string name="gesture_spider_man_shooter">Rock</string>
+    <string name="gesture_spider_shooter_no_thumb">Spiderman</string>
     <string name="gesture_ok">OK</string>
     <string name="gesture_thumb">Thumb Up</string>
     <string name="gesture_fox">Fox</string>
-    <string name="gesture_aki_fox_devil">Fox</string>
-    <string name="gesture_sixsixsix">666</string>
+    <string name="gesture_aki_fox_devil">AKI_FOX_DEVIL</string>
+    <string name="gesture_sixsixsix">SIXSIXSIX</string>
 
     <!-- Original gesture names kept for backward compat -->
     <string name="gesture_middle_finger_alt">Middle finger</string>

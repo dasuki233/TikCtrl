@@ -553,9 +553,12 @@ class HandGestureService : LifecycleService() {
 
             val flag = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
             val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE
+            val displayMetrics = resources.displayMetrics
+            val windowWidth = (displayMetrics.widthPixels * 0.45).toInt()
+            val windowHeight = (windowWidth * 4.0 / 3.0).toInt()
             val newLayoutParams = WindowManager.LayoutParams(
-                480,
-                640,
+                windowWidth,
+                windowHeight,
                 type,
                 flag,
                 PixelFormat.TRANSLUCENT
