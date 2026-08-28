@@ -20,6 +20,8 @@ import android.content.Context
 import android.content.res.Configuration
 import android.os.Bundle
 import android.util.Log
+import android.util.Range
+import android.hardware.camera2.CaptureRequest
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -30,6 +32,8 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Camera
+import androidx.camera.camera2.interop.Camera2Interop
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.AspectRatio
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
@@ -370,6 +374,7 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
 
     // Declare and bind preview, capture and analysis use cases
     @SuppressLint("UnsafeOptInUsageError")
+    @OptIn(ExperimentalCamera2Interop::class)
     private fun bindCameraUseCases() {
 
         // CameraProvider
@@ -382,6 +387,13 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
         // Preview. Only using the 4:3 ratio because this is the closest to our models
         preview = Preview.Builder().setTargetAspectRatio(AspectRatio.RATIO_4_3)
             .setTargetRotation(fragmentCameraBinding.viewFinder.display.rotation)
+            .also { builder ->
+                // 限制相机输出帧率 15-20fps，降低推理负载，减少发热
+                Camera2Interop.Extender(builder).setCaptureRequestOption(
+                    CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+                    Range(15, 20)
+                )
+            }
             .build()
 
         // ImageAnalysis. Using RGBA 8888 to match how our models work
@@ -389,6 +401,12 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
             ImageAnalysis.Builder().setTargetAspectRatio(AspectRatio.RATIO_4_3)
                 .setTargetRotation(fragmentCameraBinding.viewFinder.display.rotation)
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .also { builder ->
+                    Camera2Interop.Extender(builder).setCaptureRequestOption(
+                        CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+                        Range(15, 20)
+                    )
+                }
                 .build()
                 // The analyzer can then be assigned to the instance
                 .also {

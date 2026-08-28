@@ -11,13 +11,17 @@ import androidx.core.content.ContextCompat
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.util.Range
 import android.graphics.Bitmap
+import android.hardware.camera2.CaptureRequest
 import java.nio.ByteBuffer
 import androidx.core.app.NotificationCompat
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import androidx.camera.camera2.interop.Camera2Interop
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.MutableLiveData
@@ -245,6 +249,11 @@ class HandGestureService : LifecycleService() {
         try {
             // 初始化手势统计
             GestureStatistics.init(this)
+            // 一次性迁移：默认使用 CPU 推理以降低发热（仅本次升级重置，后续尊重用户选择）
+            val sp = prefs
+            if (sp != null && sp.getInt("delegate_migrated_v1", 0) == 0) {
+                sp.edit().putInt("inference_delegate", 0).putInt("delegate_migrated_v1", 1).apply()
+            }
             // 固定检测置信度阈值
             val minConfidence = 0.7f
 
@@ -344,12 +353,20 @@ class HandGestureService : LifecycleService() {
     }
 
     // Bind Preview and Analysis according to currentCameraSelector and previewView availability
+    @OptIn(ExperimentalCamera2Interop::class)
     private fun bindCameraUseCases() {
         val provider = cameraProvider ?: return
 
         val analyzer = ImageAnalysis.Builder()
             .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
             .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .also { builder ->
+                // 限制相机输出帧率 15-20fps，从源头降低 GPU/CPU 推理负载，减少发热
+                Camera2Interop.Extender(builder).setCaptureRequestOption(
+                    CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+                    Range(15, 20)
+                )
+            }
             .build()
 
         val executor = cameraExecutor
@@ -428,6 +445,12 @@ class HandGestureService : LifecycleService() {
             if (floatingView != null && previewView != null) {
                 val preview = Preview.Builder()
                     .setTargetAspectRatio(AspectRatio.RATIO_4_3)
+                    .also { builder ->
+                        Camera2Interop.Extender(builder).setCaptureRequestOption(
+                            CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+                            Range(15, 20)
+                        )
+                    }
                     .build()
                 preview.setSurfaceProvider(previewView!!.surfaceProvider)
                 try {
