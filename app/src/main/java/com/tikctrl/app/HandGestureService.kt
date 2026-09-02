@@ -414,6 +414,8 @@ class HandGestureService : LifecycleService() {
                 }
             } catch (e: com.google.mediapipe.framework.MediaPipeException) {
                 Log.e(TAG, "MediaPipe error: ${e.message}")
+                // 从队列移除当前帧再关闭，避免队列残留已关闭的引用导致后续 poll() 重复 close
+                pendingImageProxies.remove(imageProxy)
                 imageProxy.close()
 
                 // 首次遇到错误时，立即置空 handLandmarker 阻止后续帧使用旧 GPU 实例
@@ -424,10 +426,11 @@ class HandGestureService : LifecycleService() {
                     handLandmarker = null
                     // 不能立即 close，因为 detectAsync 可能还在另一个线程跑
                     // 延迟关闭，给 native graph 时间完成
+                    // 注意：putInt 会触发 prefsListener 同步调用 setupHandLandmarker()，
+                    // 这里不再手动调一次，避免双重重建导致旧实例未及时释放
                     mainHandler.postDelayed({
                         try { oldLandmarker?.close() } catch (_: Exception) {}
                         prefs?.edit()?.putInt("inference_delegate", 0)?.apply()
-                        setupHandLandmarker()
                         try { bindCameraUseCases() } catch (_: Exception) {}
                     }, 500)
                 }
@@ -443,21 +446,26 @@ class HandGestureService : LifecycleService() {
             provider.unbindAll()
             Log.d(TAG, "bindCameraUseCases - floatingView=${floatingView != null}, previewView=${previewView != null}")
             if (floatingView != null && previewView != null) {
-                val preview = Preview.Builder()
-                    .setTargetAspectRatio(AspectRatio.RATIO_4_3)
-                    .also { builder ->
-                        Camera2Interop.Extender(builder).setCaptureRequestOption(
-                            CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
-                            Range(15, 20)
-                        )
+                val pv = previewView
+                if (pv == null) {
+                    Log.w(TAG, "bindCameraUseCases - previewView became null")
+                } else {
+                    val preview = Preview.Builder()
+                        .setTargetAspectRatio(AspectRatio.RATIO_4_3)
+                        .also { builder ->
+                            Camera2Interop.Extender(builder).setCaptureRequestOption(
+                                CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,
+                                Range(15, 20)
+                            )
+                        }
+                        .build()
+                    preview.setSurfaceProvider(pv.surfaceProvider)
+                    try {
+                        provider.bindToLifecycle(this, cameraSelector, preview, analyzer)
+                        Log.d(TAG, "bindCameraUseCases - bound preview+analyzer successfully")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "bindToLifecycle preview+analyzer failed: ${e.message}")
                     }
-                    .build()
-                preview.setSurfaceProvider(previewView!!.surfaceProvider)
-                try {
-                    provider.bindToLifecycle(this, cameraSelector, preview, analyzer)
-                    Log.d(TAG, "bindCameraUseCases - bound preview+analyzer successfully")
-                } catch (e: Exception) {
-                    Log.e(TAG, "bindToLifecycle preview+analyzer failed: ${e.message}")
                 }
             } else {
                 Log.w(TAG, "bindCameraUseCases - floatingView or previewView is null, using analyzer-only mode")
@@ -616,7 +624,7 @@ class HandGestureService : LifecycleService() {
                         lp.x = initialX + dx
                         lp.y = initialY + dy
                         try {
-                            windowManager?.updateViewLayout(container!!, lp)
+                            container?.let { windowManager?.updateViewLayout(it, lp) }
                         } catch (_: Exception) {}
                         true
                     }
@@ -637,7 +645,7 @@ class HandGestureService : LifecycleService() {
                     // 延迟移除视图，等待相机帧停止，避免 BufferQueue abandoned
                     mainHandler.postDelayed({
                         try {
-                            windowManager?.removeView(container!!)
+                            container?.let { windowManager?.removeView(it) }
                         } catch (_: Exception) {}
                     }, 150)
                     floatingView = null
@@ -719,7 +727,10 @@ class HandGestureService : LifecycleService() {
                 }
             }
 
-            windowManager?.addView(container!!, layoutParams)
+            val lp = layoutParams
+            if (lp != null) {
+                container?.let { windowManager?.addView(it, lp) }
+            }
             floatingView = container
             previewView = container?.findViewById(R.id.float_preview_view)
             isCreatingFloatingPreview = false

@@ -36,6 +36,41 @@ object GestureStatistics {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
         if (lastResetDate != today) {
             prefs.edit().putString(KEY_LAST_RESET_DATE, today).apply()
+            // 清理超过 7 天的历史记录，避免 prefs 无限增长
+            cleanupOldHistory(7)
+        }
+    }
+
+    private fun cleanupOldHistory(keepDays: Int) {
+        try {
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val calendar = Calendar.getInstance()
+            calendar.add(Calendar.DAY_OF_YEAR, -keepDays)
+            val cutoff = calendar.time
+
+            val editor = prefs.edit()
+            var removed = 0
+            prefs.all.keys.forEach { key ->
+                if (key.startsWith(KEY_DAILY_COUNT_PREFIX)) {
+                    val dateStr = key.removePrefix(KEY_DAILY_COUNT_PREFIX)
+                    try {
+                        val date = dateFormat.parse(dateStr)
+                        if (date != null && date.before(cutoff)) {
+                            editor.remove(key)
+                            removed++
+                        }
+                    } catch (e: Exception) {
+                        // 无法解析的 key 一并清理
+                        editor.remove(key)
+                        removed++
+                    }
+                }
+            }
+            if (removed > 0) {
+                editor.apply()
+            }
+        } catch (e: Exception) {
+            // 清理失败不影响主流程
         }
     }
 

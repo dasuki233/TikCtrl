@@ -117,17 +117,17 @@
     <string name="gesture_sixsixsix">SIXSIXSIX</string>
 
     <!-- Original gesture names kept for backward compat -->
-    <string name="gesture_middle_finger_alt">Middle finger</string>
+    <string name="gesture_middle_finger_alt">Fuck</string>
     <string name="gesture_pinky_finger_alt">Pinky</string>
-    <string name="gesture_index_finger_alt">Index finger</string>
-    <string name="gesture_peace_v_alt">Peace</string>
+    <string name="gesture_index_finger_alt">Point</string>
+    <string name="gesture_peace_v_alt">Peace V</string>
     <string name="gesture_index_middle_ring_alt">Three fingers</string>
     <string name="gesture_index_middle_ring_pinky_alt">Four fingers</string>
     <string name="gesture_spider_man_shooter_alt">Rock</string>
     <string name="gesture_spider_shooter_no_thumb_alt">Rock no thumb</string>
     <string name="gesture_ok_alt">OK</string>
-    <string name="gesture_thumb_alt">Thumb</string>
-    <string name="gesture_aki_fox_devil_alt">Fox</string>
+    <string name="gesture_thumb_alt">Good</string>
+    <string name="gesture_aki_fox_devil_alt">aki_fox_devil</string>
     <string name="gesture_sixsixsix_alt">666</string>
 
     <!-- Gesture actions -->

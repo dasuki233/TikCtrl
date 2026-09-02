@@ -103,8 +103,8 @@
     <!-- Gesture names (Chinese) -->
     <string name="gesture_none">未检测到手势</string>
     <string name="gesture_middle_finger">🖕</string>
-    <string name="gesture_pinky_finger">小拇指</string>
-    <string name="gesture_index_finger">食指</string>
+    <string name="gesture_pinky_finger">拉钩</string>
+    <string name="gesture_index_finger">☝️</string>
     <string name="gesture_peace_v">✌️</string>
     <string name="gesture_index_middle_ring">三指</string>
     <string name="gesture_index_middle_ring_pinky">四指</string>
@@ -118,11 +118,11 @@
 
     <!-- Original gesture names kept for backward compat -->
     <string name="gesture_middle_finger_alt">点赞</string>
-    <string name="gesture_pinky_finger_alt">小拇指</string>
+    <string name="gesture_pinky_finger_alt">拉钩</string>
     <string name="gesture_index_finger_alt">食指</string>
     <string name="gesture_peace_v_alt">比耶</string>
     <string name="gesture_index_middle_ring_alt">三指</string>
-    <string name="gesture_index_middle_ring_pinky_alt">四指</string>
+    <string name="gesture_index_middle_ring_pinky_alt">发誓</string>
     <string name="gesture_spider_man_shooter_alt">蜘蛛侠</string>
     <string name="gesture_spider_shooter_no_thumb_alt">蜘蛛侠(无拇指)</string>
     <string name="gesture_ok_alt">OK</string>
