@@ -1,6 +1,7 @@
 package com.tikctrl.app
 
 import android.util.Log
+import com.tikctrl.app.BuildConfig
 import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
 import kotlin.math.absoluteValue
@@ -75,7 +76,7 @@ class GestureClassifier {
             val angle2 = calculateAngle(pip, dip, tip)
 
             val isStraight = angle1 > 160.0 && angle2 > 160.0
-            Log.d(
+            if (BuildConfig.DEBUG) Log.d(
                 "FingerStraight",
                 "手指 - " +
                         "关节[$mcpIdx-$pipIdx-$dipIdx-$tipIdx] " +
@@ -91,7 +92,7 @@ class GestureClassifier {
             val tip1 = landmarks[tip1Idx]
             val tip2 = landmarks[tip2Idx]
             val dist = hypot((tip1.x() - tip2.x()).toDouble(), (tip1.y() - tip2.y()).toDouble())
-            Log.d(
+            if (BuildConfig.DEBUG) Log.d(
                 "TouchDebug",
                 "指尖 $tip1Idx 和 $tip2Idx: 距离=$dist, 阈值=$threshold"
             )
@@ -107,12 +108,14 @@ class GestureClassifier {
         )
 
         // Debug: log a few landmark values to help tune classifier
-        try {
-            val sample = landmarks.take(5).mapIndexed { i, p -> "#$i:(x=${p.x()},y=${p.y()})" }
-                .joinToString(",")
-            Log.d("GestureClassifier", "Landmarks sample: $sample")
-        } catch (e: Exception) {
-            Log.w("GestureClassifier", "Failed to log landmarks: ${e.message}")
+        if (BuildConfig.DEBUG) {
+            try {
+                val sample = landmarks.take(5).mapIndexed { i, p -> "#$i:(x=${p.x()},y=${p.y()})" }
+                    .joinToString(",")
+                Log.d("GestureClassifier", "Landmarks sample: $sample")
+            } catch (e: Exception) {
+                Log.w("GestureClassifier", "Failed to log landmarks: ${e.message}")
+            }
         }
 
         //  🖕🏻 点赞：中指伸直，其他手指弯曲
@@ -267,7 +270,7 @@ class GestureClassifier {
                 Double.MIN_VALUE
             }
 
-            Log.d(
+            if (BuildConfig.DEBUG) Log.d(
                 "GestureClassifier",
                 "angles: 9-10-11=${"%.1f".format(angle9_10_11)}, 13-14-15=${
                     "%.1f".format(angle13_14_15)
@@ -371,7 +374,7 @@ class GestureClassifier {
                 Double.MIN_VALUE
             }
 
-            Log.d(
+            if (BuildConfig.DEBUG) Log.d(
                 "GestureClassifier",
                 "angles: 9-10-11=${"%.1f".format(angle9_10_11)}, 13-14-15=${
                     "%.1f".format(angle13_14_15)

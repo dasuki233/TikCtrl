@@ -89,12 +89,12 @@ class GestureActionService : AccessibilityService() {
         try {
             val type = event.eventType
             if (expectingContentChange && (type == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED || type == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED)) {
-                android.util.Log.i("GestureActionService", "Observed UI content change event type=$type")
+                if (BuildConfig.DEBUG) android.util.Log.i("GestureActionService", "Observed UI content change event type=$type")
                 contentChangeLatch?.countDown()
                 expectingContentChange = false
             }
         } catch (e: Exception) {
-            android.util.Log.w("GestureActionService", "onAccessibilityEvent exception: ${e.message}")
+            if (BuildConfig.DEBUG) android.util.Log.w("GestureActionService", "onAccessibilityEvent exception: ${e.message}")
         }
     }
 
@@ -238,12 +238,12 @@ class GestureActionService : AccessibilityService() {
             object : GestureResultCallback() {
                 override fun onCompleted(gestureDescription: GestureDescription) {
                     super.onCompleted(gestureDescription)
-                    android.util.Log.i("GestureActionService", "✅ 8次点击完成")
+                    android.util.Log.i("GestureActionService", "8次点击完成")
                 }
 
                 override fun onCancelled(gestureDescription: GestureDescription) {
                     super.onCancelled(gestureDescription)
-                    android.util.Log.e("GestureActionService", "❌ 连续点击被取消")
+                    android.util.Log.e("GestureActionService", "连续点击被取消")
                 }
             },
             null
@@ -328,7 +328,7 @@ class GestureActionService : AccessibilityService() {
                 val desc = node.contentDescription?.toString() ?: ""
                 val cls = node.className?.toString() ?: ""
                 val bounds = android.graphics.Rect(); node.getBoundsInScreen(bounds)
-                android.util.Log.i("GestureActionService", "$indent id=$id text='$text' desc='$desc' cls=$cls bounds=$bounds clickable=${node.isClickable} focusable=${node.isFocusable}")
+                if (BuildConfig.DEBUG) android.util.Log.i("GestureActionService", "$indent id=$id text='$text' desc='$desc' cls=$cls bounds=$bounds clickable=${node.isClickable} focusable=${node.isFocusable}")
                 for (i in 0 until node.childCount) {
                     val child = node.getChild(i) ?: continue
                     try {
@@ -338,7 +338,7 @@ class GestureActionService : AccessibilityService() {
                     }
                 }
             } catch (e: Exception) {
-                android.util.Log.w("GestureActionService", "walk exception: ${e.message}")
+                if (BuildConfig.DEBUG) android.util.Log.w("GestureActionService", "walk exception: ${e.message}")
             } finally {
                 try { node.recycle() } catch (ignored: Exception) {}
             }
@@ -366,11 +366,11 @@ class GestureActionService : AccessibilityService() {
                 val desc = node.contentDescription?.toString()
                 if (!desc.isNullOrEmpty() && desc.contains(keyword)) {
                     if (classNameFilter == null || node.className?.toString() == classNameFilter) {
+                        // 只加入副本；obtain 失败则跳过，避免把稍后被回收的原节点加入列表（use-after-recycle）
                         try {
                             matches.add(AccessibilityNodeInfo.obtain(node))
                         } catch (e: Exception) {
-                            // fallback to adding reference
-                            matches.add(node)
+                            // ignore: skip this node
                         }
                     }
                 }
@@ -387,73 +387,77 @@ class GestureActionService : AccessibilityService() {
             }
         }
 
-        walk(root)
+        try {
+            walk(root)
+        } finally {
+            try { root.recycle() } catch (ignored: Exception) {}
+        }
 
         if (matches.isEmpty()) {
             android.util.Log.i("GestureActionService", "No nodes with contentDesc contains '$keyword'")
             return false
         }
 
-        // Sort by clickable then proximity to center
-        matches.sortWith(compareByDescending<AccessibilityNodeInfo> { it.isClickable }.thenComparator { a, b ->
-            val ra = android.graphics.Rect().also { a.getBoundsInScreen(it) }
-            val rb = android.graphics.Rect().also { b.getBoundsInScreen(it) }
-            val metrics = resources.displayMetrics
-            val cx = metrics.widthPixels / 2
-            val cy = metrics.heightPixels / 2
-            val da = Math.hypot((ra.centerX() - cx).toDouble(), (ra.centerY() - cy).toDouble())
-            val db = Math.hypot((rb.centerX() - cx).toDouble(), (rb.centerY() - cy).toDouble())
-            da.compareTo(db)
-        })
-
-        // Try robust click on first candidate
-        val node = matches[0]
         try {
-            // attempt performAction or fallback to coordinate tap via existing function
-            val ok = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-            android.util.Log.i("GestureActionService", "performAction on desc node result=$ok")
-            if (ok) {
-                try { node.recycle() } catch (ignored: Exception) {}
-                return true
+            // Sort by clickable then proximity to center
+            matches.sortWith(compareByDescending<AccessibilityNodeInfo> { it.isClickable }.thenComparator { a, b ->
+                val ra = android.graphics.Rect().also { a.getBoundsInScreen(it) }
+                val rb = android.graphics.Rect().also { b.getBoundsInScreen(it) }
+                val metrics = resources.displayMetrics
+                val cx = metrics.widthPixels / 2
+                val cy = metrics.heightPixels / 2
+                val da = Math.hypot((ra.centerX() - cx).toDouble(), (ra.centerY() - cy).toDouble())
+                val db = Math.hypot((rb.centerX() - cx).toDouble(), (rb.centerY() - cy).toDouble())
+                da.compareTo(db)
+            })
+
+            // Try robust click on first candidate
+            val node = matches[0]
+            try {
+                // attempt performAction or fallback to coordinate tap via existing function
+                val ok = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                android.util.Log.i("GestureActionService", "performAction on desc node result=$ok")
+                if (ok) return true
+            } catch (e: Exception) {
+                android.util.Log.w("GestureActionService", "performAction on desc node exception: ${e.message}")
             }
-        } catch (e: Exception) {
-            android.util.Log.w("GestureActionService", "performAction on desc node exception: ${e.message}")
-        }
 
-        // Not clickable or performAction failed: try ancestors or coordinate tap
-        val resourceName = node.viewIdResourceName ?: ""
-        try {
-            // Try clickable ancestor
-            var parent = node.parent
-            while (parent != null) {
-                if (parent.isClickable) {
-                    val okParent = parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                    android.util.Log.i("GestureActionService", "performAction on ancestor for desc node result=$okParent")
-                    if (okParent) {
-                        try { node.recycle() } catch (ignored: Exception) {}
-                        return true
+            // Not clickable or performAction failed: try ancestors or coordinate tap
+            try {
+                // Try clickable ancestor。逐级回收 ancestor，避免 parent 链泄漏
+                var parent = node.parent
+                while (parent != null) {
+                    val next = parent.parent
+                    if (parent.isClickable) {
+                        val okParent = parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        android.util.Log.i("GestureActionService", "performAction on ancestor for desc node result=$okParent")
+                        if (okParent) {
+                            try { parent.recycle() } catch (ignored: Exception) {}
+                            return true
+                        }
                     }
+                    try { parent.recycle() } catch (ignored: Exception) {}
+                    parent = next
                 }
-                parent = parent.parent
+            } catch (e: Exception) {
+                android.util.Log.w("GestureActionService", "ancestor perform exception: ${e.message}")
             }
-        } catch (e: Exception) {
-            android.util.Log.w("GestureActionService", "ancestor perform exception: ${e.message}")
-        }
 
-        // Fallback to coordinate tap and wait for UI change
-        val bounds = android.graphics.Rect()
-        node.getBoundsInScreen(bounds)
-        if (!bounds.isEmpty && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            val x = bounds.centerX().toFloat()
-            val y = bounds.centerY().toFloat()
-            android.util.Log.i("GestureActionService", "Fallback coordinate tap for desc '$keyword' at ($x,$y)")
-            val success = dispatchGestureAndWaitForUiChange(x, y)
-            try { node.recycle() } catch (ignored: Exception) {}
-            return success
-        }
+            // Fallback to coordinate tap and wait for UI change
+            val bounds = android.graphics.Rect()
+            node.getBoundsInScreen(bounds)
+            if (!bounds.isEmpty && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                val x = bounds.centerX().toFloat()
+                val y = bounds.centerY().toFloat()
+                android.util.Log.i("GestureActionService", "Fallback coordinate tap for desc '$keyword' at ($x,$y)")
+                return dispatchGestureAndWaitForUiChange(x, y)
+            }
 
-        try { node.recycle() } catch (ignored: Exception) {}
-        return false
+            return false
+        } finally {
+            // 无论结果如何，回收所有匹配副本，杜绝泄漏
+            matches.forEach { try { it.recycle() } catch (ignored: Exception) {} }
+        }
     }
 
     // Recursively search subtree for send-like nodes and try to click them (class-level method)
@@ -535,10 +539,11 @@ class GestureActionService : AccessibilityService() {
                 val txt = node.text?.toString()
                 if (!txt.isNullOrEmpty() && txt.contains(keyword)) {
                     if (classNameFilter == null || node.className?.toString() == classNameFilter) {
+                        // 只加入副本；obtain 失败则跳过，避免 use-after-recycle
                         try {
                             matches.add(AccessibilityNodeInfo.obtain(node))
                         } catch (e: Exception) {
-                            matches.add(node)
+                            // ignore: skip this node
                         }
                     }
                 }
@@ -555,60 +560,65 @@ class GestureActionService : AccessibilityService() {
             }
         }
 
-        walk(root)
+        try {
+            walk(root)
+        } finally {
+            try { root.recycle() } catch (ignored: Exception) {}
+        }
 
         if (matches.isEmpty()) {
             android.util.Log.i("GestureActionService", "No nodes with text contains '$keyword'")
             return false
         }
 
-        // Prefer clickable nodes
-        matches.sortWith(compareByDescending<AccessibilityNodeInfo> { it.isClickable })
-
-        val node = matches[0]
         try {
-            val ok = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-            android.util.Log.i("GestureActionService", "performAction on text node result=$ok")
-            if (ok) {
-                try { node.recycle() } catch (ignored: Exception) {}
-                return true
+            // Prefer clickable nodes
+            matches.sortWith(compareByDescending<AccessibilityNodeInfo> { it.isClickable })
+
+            val node = matches[0]
+            try {
+                val ok = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                android.util.Log.i("GestureActionService", "performAction on text node result=$ok")
+                if (ok) return true
+            } catch (e: Exception) {
+                android.util.Log.w("GestureActionService", "performAction on text node exception: ${e.message}")
             }
-        } catch (e: Exception) {
-            android.util.Log.w("GestureActionService", "performAction on text node exception: ${e.message}")
-        }
 
-        // try ancestors
-        try {
-            var parent = node.parent
-            while (parent != null) {
-                if (parent.isClickable) {
-                    val okParent = parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                    android.util.Log.i("GestureActionService", "performAction on ancestor for text node result=$okParent")
-                    if (okParent) {
-                        try { node.recycle() } catch (ignored: Exception) {}
-                        return true
+            // try ancestors。逐级回收 ancestor
+            try {
+                var parent = node.parent
+                while (parent != null) {
+                    val next = parent.parent
+                    if (parent.isClickable) {
+                        val okParent = parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        android.util.Log.i("GestureActionService", "performAction on ancestor for text node result=$okParent")
+                        if (okParent) {
+                            try { parent.recycle() } catch (ignored: Exception) {}
+                            return true
+                        }
                     }
+                    try { parent.recycle() } catch (ignored: Exception) {}
+                    parent = next
                 }
-                parent = parent.parent
+            } catch (e: Exception) {
+                android.util.Log.w("GestureActionService", "ancestor perform exception: ${e.message}")
             }
-        } catch (e: Exception) {
-            android.util.Log.w("GestureActionService", "ancestor perform exception: ${e.message}")
-        }
 
-        // coordinate fallback
-        val bounds = android.graphics.Rect()
-        node.getBoundsInScreen(bounds)
-        if (!bounds.isEmpty && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            val x = bounds.centerX().toFloat()
-            val y = bounds.centerY().toFloat()
-            android.util.Log.i("GestureActionService", "Fallback coordinate tap for text '$keyword' at ($x,$y)")
-            val success = dispatchGestureAndWaitForUiChange(x, y)
-            try { node.recycle() } catch (ignored: Exception) {}
-            return success
-        }
+            // coordinate fallback
+            val bounds = android.graphics.Rect()
+            node.getBoundsInScreen(bounds)
+            if (!bounds.isEmpty && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                val x = bounds.centerX().toFloat()
+                val y = bounds.centerY().toFloat()
+                android.util.Log.i("GestureActionService", "Fallback coordinate tap for text '$keyword' at ($x,$y)")
+                return dispatchGestureAndWaitForUiChange(x, y)
+            }
 
-        try { node.recycle() } catch (ignored: Exception) {}
-        return false
+            return false
+        } finally {
+            // 无论结果如何，回收所有匹配副本
+            matches.forEach { try { it.recycle() } catch (ignored: Exception) {} }
+        }
     }
 
     // Find node(s) whose viewIdResourceName contains keyword and click using robust strategy
@@ -624,10 +634,11 @@ class GestureActionService : AccessibilityService() {
             try {
                 val vid = node.viewIdResourceName ?: ""
                 if (vid.contains(keyword)) {
+                    // 只加入副本；obtain 失败则跳过，避免 use-after-recycle
                     try {
                         matches.add(AccessibilityNodeInfo.obtain(node))
                     } catch (e: Exception) {
-                        matches.add(node)
+                        // ignore: skip this node
                     }
                 }
                 for (i in 0 until node.childCount) {
@@ -643,60 +654,65 @@ class GestureActionService : AccessibilityService() {
             }
         }
 
-        walk(root)
+        try {
+            walk(root)
+        } finally {
+            try { root.recycle() } catch (ignored: Exception) {}
+        }
 
         if (matches.isEmpty()) {
             android.util.Log.i("GestureActionService", "No nodes with viewId contains '$keyword'")
             return false
         }
 
-        // Prefer clickable nodes
-        matches.sortWith(compareByDescending<AccessibilityNodeInfo> { it.isClickable })
-
-        val node = matches[0]
         try {
-            val ok = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-            android.util.Log.i("GestureActionService", "performAction on viewId node result=$ok")
-            if (ok) {
-                try { node.recycle() } catch (ignored: Exception) {}
-                return true
+            // Prefer clickable nodes
+            matches.sortWith(compareByDescending<AccessibilityNodeInfo> { it.isClickable })
+
+            val node = matches[0]
+            try {
+                val ok = node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                android.util.Log.i("GestureActionService", "performAction on viewId node result=$ok")
+                if (ok) return true
+            } catch (e: Exception) {
+                android.util.Log.w("GestureActionService", "performAction on viewId node exception: ${e.message}")
             }
-        } catch (e: Exception) {
-            android.util.Log.w("GestureActionService", "performAction on viewId node exception: ${e.message}")
-        }
 
-        // try ancestors
-        try {
-            var parent = node.parent
-            while (parent != null) {
-                if (parent.isClickable) {
-                    val okParent = parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                    android.util.Log.i("GestureActionService", "performAction on ancestor for viewId node result=$okParent")
-                    if (okParent) {
-                        try { node.recycle() } catch (ignored: Exception) {}
-                        return true
+            // try ancestors。逐级回收 ancestor
+            try {
+                var parent = node.parent
+                while (parent != null) {
+                    val next = parent.parent
+                    if (parent.isClickable) {
+                        val okParent = parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                        android.util.Log.i("GestureActionService", "performAction on ancestor for viewId node result=$okParent")
+                        if (okParent) {
+                            try { parent.recycle() } catch (ignored: Exception) {}
+                            return true
+                        }
                     }
+                    try { parent.recycle() } catch (ignored: Exception) {}
+                    parent = next
                 }
-                parent = parent.parent
+            } catch (e: Exception) {
+                android.util.Log.w("GestureActionService", "ancestor perform exception: ${e.message}")
             }
-        } catch (e: Exception) {
-            android.util.Log.w("GestureActionService", "ancestor perform exception: ${e.message}")
-        }
 
-        // coordinate fallback
-        val bounds = android.graphics.Rect()
-        node.getBoundsInScreen(bounds)
-        if (!bounds.isEmpty && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            val x = bounds.centerX().toFloat()
-            val y = bounds.centerY().toFloat()
-            android.util.Log.i("GestureActionService", "Fallback coordinate tap for viewId '$keyword' at ($x,$y)")
-            val success = dispatchGestureAndWaitForUiChange(x, y)
-            try { node.recycle() } catch (ignored: Exception) {}
-            return success
-        }
+            // coordinate fallback
+            val bounds = android.graphics.Rect()
+            node.getBoundsInScreen(bounds)
+            if (!bounds.isEmpty && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                val x = bounds.centerX().toFloat()
+                val y = bounds.centerY().toFloat()
+                android.util.Log.i("GestureActionService", "Fallback coordinate tap for viewId '$keyword' at ($x,$y)")
+                return dispatchGestureAndWaitForUiChange(x, y)
+            }
 
-        try { node.recycle() } catch (ignored: Exception) {}
-        return false
+            return false
+        } finally {
+            // 无论结果如何，回收所有匹配副本
+            matches.forEach { try { it.recycle() } catch (ignored: Exception) {} }
+        }
     }
 
     // Dispatch a single-tap gesture and wait for a UI content change event (with timeout). Returns true if UI changed.
@@ -822,24 +838,35 @@ class GestureActionService : AccessibilityService() {
                     allDescriptions.add("『$desc』 - $className ($clickable)")
                 }
                 for (i in 0 until node.childCount) {
-                    collectDescriptions(node.getChild(i))
+                    val child = node.getChild(i)
+                    try {
+                        collectDescriptions(child)
+                    } finally {
+                        try { child?.recycle() } catch (ignored: Exception) {}
+                    }
                 }
             } catch (e: Exception) {
                 // 忽略异常
             }
         }
 
-        collectDescriptions(root)
-
-        android.util.Log.d("GestureActionService", "=== 当前界面可用元素 ===")
-        if (allDescriptions.isEmpty()) {
-            android.util.Log.d("GestureActionService", "没有找到任何内容描述")
-        } else {
-            allDescriptions.forEachIndexed { index, desc ->
-                android.util.Log.d("GestureActionService", "${index + 1}. $desc")
-            }
+        try {
+            collectDescriptions(root)
+        } finally {
+            try { root.recycle() } catch (ignored: Exception) {}
         }
-        android.util.Log.d("GestureActionService", "=== 共 ${allDescriptions.size} 个元素 ===")
+
+        if (BuildConfig.DEBUG) {
+            android.util.Log.d("GestureActionService", "=== 当前界面可用元素 ===")
+            if (allDescriptions.isEmpty()) {
+                android.util.Log.d("GestureActionService", "没有找到任何内容描述")
+            } else {
+                allDescriptions.forEachIndexed { index, desc ->
+                    android.util.Log.d("GestureActionService", "${index + 1}. $desc")
+                }
+            }
+            android.util.Log.d("GestureActionService", "=== 共 ${allDescriptions.size} 个元素 ===")
+        }
     }
 
     // 长按后 找到 元素点击 调倍速用
@@ -914,7 +941,7 @@ class GestureActionService : AccessibilityService() {
                 return
             }
 
-            // Search for exact viewId
+            // Search for exact viewId。递归遍历时回收不匹配的中间子节点，避免泄漏
             fun findByViewId(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
                 if (node == null) return null
                 try {
@@ -923,7 +950,12 @@ class GestureActionService : AccessibilityService() {
                     for (i in 0 until node.childCount) {
                         val child = node.getChild(i) ?: continue
                         val found = findByViewId(child)
-                        if (found != null) return found
+                        if (found != null) {
+                            // 在子树中找到目标，不可回收 child（它是结果的祖先）
+                            return found
+                        }
+                        // 未找到，回收中间节点
+                        try { child.recycle() } catch (ignored: Exception) {}
                     }
                 } catch (e: Exception) {
                     // ignore
@@ -962,6 +994,12 @@ class GestureActionService : AccessibilityService() {
                 try { exact.recycle() } catch (ignored: Exception) {}
             }
 
+            // exact 可能 === root 且已被回收，这里取新的 root 做 partial 匹配，避免访问已回收节点
+            val partialRoot = rootInActiveWindow ?: run {
+                android.util.Log.w("GestureActionService", "clickUserAvatar: partial root null")
+                return
+            }
+
             // 2) Try partial id or className match (partial id contains 'user_avatar' or className 'android.widget.ImageView')
             val partialMatches = mutableListOf<AccessibilityNodeInfo>()
             fun collectPartial(node: AccessibilityNodeInfo?) {
@@ -970,51 +1008,68 @@ class GestureActionService : AccessibilityService() {
                     val vid = node.viewIdResourceName ?: ""
                     val cls = node.className?.toString() ?: ""
                     if (vid.contains("user_avatar") || cls == "android.widget.ImageView") {
-                        partialMatches.add(node)
+                        // 用 obtain 创建副本加入列表，原节点可安全回收；obtain 失败则跳过，避免 use-after-recycle
+                        try {
+                            partialMatches.add(AccessibilityNodeInfo.obtain(node))
+                        } catch (e: Exception) {
+                            // ignore: skip this node
+                        }
                     }
                     for (i in 0 until node.childCount) {
-                        collectPartial(node.getChild(i))
-                    }
-                } catch (e: Exception) {
-                    // ignore
-                }
-            }
-
-            collectPartial(root)
-            if (partialMatches.isNotEmpty()) {
-                // prefer clickable ones
-                partialMatches.sortWith(compareByDescending<AccessibilityNodeInfo> { it.isClickable })
-                val node = partialMatches[0]
-                try {
-                    android.util.Log.i("GestureActionService", "clickUserAvatar: found by partial id/class, attempting click")
-                    if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                        try { node.recycle() } catch (ignored: Exception) {}
-                        return
-                    }
-                } catch (e: Exception) {
-                    android.util.Log.w("GestureActionService", "clickUserAvatar performAction exception: ${e.message}")
-                }
-
-                // fallback to coordinate
-                try {
-                    val bounds = android.graphics.Rect()
-                    node.getBoundsInScreen(bounds)
-                    if (!bounds.isEmpty && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        val x = bounds.centerX().toFloat()
-                        val y = bounds.centerY().toFloat()
-                        android.util.Log.i("GestureActionService", "clickUserAvatar: fallback coordinate tap at ($x,$y)")
-                        if (dispatchGestureAndWaitForUiChange(x, y, 1200L, 80L)) {
-                            try { node.recycle() } catch (ignored: Exception) {}
-                            return
+                        val child = node.getChild(i) ?: continue
+                        try {
+                            collectPartial(child)
+                        } finally {
+                            try { child.recycle() } catch (ignored: Exception) {}
                         }
                     }
                 } catch (e: Exception) {
                     // ignore
                 }
-                try { node.recycle() } catch (ignored: Exception) {}
             }
 
-            android.util.Log.w("GestureActionService", "clickUserAvatar: did not find avatar by id or class")
+            try {
+                collectPartial(partialRoot)
+            } finally {
+                try { partialRoot.recycle() } catch (ignored: Exception) {}
+            }
+
+            try {
+                if (partialMatches.isNotEmpty()) {
+                    // prefer clickable ones
+                    partialMatches.sortWith(compareByDescending<AccessibilityNodeInfo> { it.isClickable })
+                    val node = partialMatches[0]
+                    try {
+                        android.util.Log.i("GestureActionService", "clickUserAvatar: found by partial id/class, attempting click")
+                        if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                            return
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("GestureActionService", "clickUserAvatar performAction exception: ${e.message}")
+                    }
+
+                    // fallback to coordinate
+                    try {
+                        val bounds = android.graphics.Rect()
+                        node.getBoundsInScreen(bounds)
+                        if (!bounds.isEmpty && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                            val x = bounds.centerX().toFloat()
+                            val y = bounds.centerY().toFloat()
+                            android.util.Log.i("GestureActionService", "clickUserAvatar: fallback coordinate tap at ($x,$y)")
+                            if (dispatchGestureAndWaitForUiChange(x, y, 1200L, 80L)) {
+                                return
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // ignore
+                    }
+                }
+
+                android.util.Log.w("GestureActionService", "clickUserAvatar: did not find avatar by id or class")
+            } finally {
+                // 回收所有 partial 匹配节点（无论是否被使用）
+                partialMatches.forEach { try { it.recycle() } catch (ignored: Exception) {} }
+            }
         } catch (e: Exception) {
             android.util.Log.w("GestureActionService", "clickUserAvatar general exception: ${e.message}")
         }
@@ -1036,62 +1091,84 @@ class GestureActionService : AccessibilityService() {
                 val desc = node.contentDescription?.toString() ?: ""
                 for (t in targets) {
                     if (t.isNotEmpty() && (txt.contains(t) || desc.contains(t))) {
+                        // 只加入副本；obtain 失败则跳过，原节点由遍历逻辑统一回收
                         try {
                             foundTargets.add(AccessibilityNodeInfo.obtain(node))
                         } catch (e: Exception) {
-                            foundTargets.add(node)
+                            // ignore: skip this node
                         }
                         break
                     }
                 }
                 for (i in 0 until node.childCount) {
-                    collect(node.getChild(i))
+                    val child = node.getChild(i) ?: continue
+                    try {
+                        collect(child)
+                    } finally {
+                        try { child.recycle() } catch (ignored: Exception) {}
+                    }
                 }
             } catch (e: Exception) {
                 // ignore
             }
         }
 
-        collect(root)
+        try {
+            collect(root)
+        } finally {
+            try { root.recycle() } catch (ignored: Exception) {}
+        }
 
         if (foundTargets.isEmpty()) {
             android.util.Log.i("GestureActionService", "No nodes matching targets found for sibling search")
             return false
         }
 
-        // For each found target, walk up ancestors and inspect siblings for send-like nodes
-        for (targetNode in foundTargets) {
-            try {
-                var ancestor = targetNode.parent
+        try {
+            // For each found target, walk up ancestors and inspect siblings for send-like nodes
+            for (targetNode in foundTargets) {
+                try {
+                    var ancestor = targetNode.parent
                     var depth = 0
-                    // walk up ancestors (allow deeper traversal if needed)
+                    // walk up ancestors (allow deeper traversal if needed)。逐级回收 ancestor，避免链式泄漏
                     while (ancestor != null && depth < 10) {
+                        var clicked = false
                         // inspect each child (sibling subtree) of this ancestor for send-like nodes
                         for (i in 0 until ancestor.childCount) {
                             val child = ancestor.getChild(i) ?: continue
+                            // child 所有权转移给 tryClickSendInSubtree，由其内部负责回收（成功/失败均回收一次）
                             try {
                                 // Recursively search the child's subtree for send-like clickable nodes
                                 if (tryClickSendInSubtree(child)) {
-                                    try { targetNode.recycle() } catch (ignored: Exception) {}
-                                    return true
+                                    clicked = true
+                                    break
                                 }
                             } catch (e: Exception) {
                                 // ignore per-child errors
                             }
                         }
 
+                        if (clicked) {
+                            try { ancestor.recycle() } catch (ignored: Exception) {}
+                            return true
+                        }
+
                         // go up one level and continue
-                        ancestor = ancestor.parent
+                        val next = ancestor.parent
+                        try { ancestor.recycle() } catch (ignored: Exception) {}
+                        ancestor = next
                         depth++
                     }
-            } catch (e: Exception) {
-                // ignore per-target errors
-            } finally {
-                try { targetNode.recycle() } catch (ignored: Exception) {}
+                } catch (e: Exception) {
+                    // ignore per-target errors
+                }
             }
-        }
 
-        return false
+            return false
+        } finally {
+            // 无论结果如何，回收所有 target 副本（每个恰好一次）
+            foundTargets.forEach { try { it.recycle() } catch (ignored: Exception) {} }
+        }
     }
 
 

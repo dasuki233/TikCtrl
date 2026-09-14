@@ -82,12 +82,12 @@ class MainActivity : AppCompatActivity() {
         val isEnabled = !enabledServices.isNullOrEmpty() && enabledServices.contains(expectedComponent.flattenToString())
         if (!isEnabled) {
             AlertDialog.Builder(this)
-                .setTitle("需要开启无障碍服务")
-                .setMessage("为了让手势触发系统操作，请在设置中启用应用的无障碍服务。\n\n点击前往开启。")
-                .setPositiveButton("去设置") { _, _ ->
+                .setTitle(getString(R.string.dialog_accessibility_title))
+                .setMessage(getString(R.string.dialog_accessibility_message))
+                .setPositiveButton(getString(R.string.action_go_settings)) { _, _ ->
                     startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                 }
-                .setNegativeButton("取消", null)
+                .setNegativeButton(getString(R.string.cancel), null)
                 .setCancelable(true)
                 .show()
         }
@@ -135,12 +135,12 @@ class MainActivity : AppCompatActivity() {
         if (shouldExplain) {
             // Show rationale and re-request
             AlertDialog.Builder(this)
-                .setTitle("需要相机权限")
-                .setMessage("应用需要相机权限来检测手势。请允许相机权限以继续。")
-                .setPositiveButton("允许") { _, _ ->
+                .setTitle(getString(R.string.dialog_camera_title))
+                .setMessage(getString(R.string.dialog_camera_message))
+                .setPositiveButton(getString(R.string.action_allow)) { _, _ ->
                     ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.CAMERA), REQ_CAMERA_PERM)
                 }
-                .setNegativeButton("取消", null)
+                .setNegativeButton(getString(R.string.cancel), null)
                 .show()
         } else {
             // Possibly first-time or permanently denied. Request permission first; if permanently denied, guide to settings.
@@ -152,13 +152,13 @@ class MainActivity : AppCompatActivity() {
         // First ensure overlay permission (悬浮窗) is granted on Android M+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
             AlertDialog.Builder(this)
-                .setTitle("需要悬浮窗权限")
-                .setMessage("检测结果需要在其他应用上方显示悬浮窗，请允许“在其他应用上显示”权限。点击前往设置。")
-                .setPositiveButton("去设置") { _, _ ->
+                .setTitle(getString(R.string.dialog_overlay_title))
+                .setMessage(getString(R.string.dialog_overlay_message))
+                .setPositiveButton(getString(R.string.action_go_settings)) { _, _ ->
                     val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
                     startActivity(intent)
                 }
-                .setNegativeButton("取消", null)
+                .setNegativeButton(getString(R.string.cancel), null)
                 .show()
             return
         }
@@ -169,12 +169,12 @@ class MainActivity : AppCompatActivity() {
         val isAccessibilityEnabled = !enabledServices.isNullOrEmpty() && enabledServices.contains(expectedComponent.flattenToString())
         if (!isAccessibilityEnabled) {
             AlertDialog.Builder(this)
-                .setTitle("需要开启无障碍服务")
-                .setMessage("为了让手势触发系统操作，请在设置中启用应用的无障碍服务。点击前往开启。")
-                .setPositiveButton("去设置") { _, _ ->
+                .setTitle(getString(R.string.dialog_accessibility_title))
+                .setMessage(getString(R.string.dialog_accessibility_message))
+                .setPositiveButton(getString(R.string.action_go_settings)) { _, _ ->
                     startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                 }
-                .setNegativeButton("取消", null)
+                .setNegativeButton(getString(R.string.cancel), null)
                 .setCancelable(true)
                 .show()
             return
@@ -221,22 +221,22 @@ class MainActivity : AppCompatActivity() {
                 val permanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(this, android.Manifest.permission.CAMERA)
                 if (permanentlyDenied) {
                     AlertDialog.Builder(this)
-                        .setTitle("相机权限被拒绝")
-                        .setMessage("您已拒绝相机权限且选择不再询问。请前往应用设置手动开启相机权限。")
-                        .setPositiveButton("去设置") { _, _ ->
+                        .setTitle(getString(R.string.dialog_camera_denied_title))
+                        .setMessage(getString(R.string.dialog_camera_denied_message))
+                        .setPositiveButton(getString(R.string.action_go_settings)) { _, _ ->
                             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
                             startActivity(intent)
                         }
-                        .setNegativeButton("取消", null)
+                        .setNegativeButton(getString(R.string.cancel), null)
                         .show()
                 } else {
                     AlertDialog.Builder(this)
-                        .setTitle("需要相机权限")
-                        .setMessage("应用需要相机权限来检测手势。请允许相机权限以继续。")
-                        .setPositiveButton("重试") { _, _ ->
+                        .setTitle(getString(R.string.dialog_camera_title))
+                        .setMessage(getString(R.string.dialog_camera_message))
+                        .setPositiveButton(getString(R.string.action_retry)) { _, _ ->
                             ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.CAMERA), REQ_CAMERA_PERM)
                         }
-                        .setNegativeButton("取消", null)
+                        .setNegativeButton(getString(R.string.cancel), null)
                         .show()
                 }
             }

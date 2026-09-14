@@ -97,6 +97,10 @@ object ConfigManager {
             var gestureCount = 0
             var settingsCount = 0
 
+            // 合法 key 白名单，用于校验导入数据，防止注入任意 key
+            val validGestureNames = GestureClassifier.Gesture.values().map { it.name }.toSet()
+            val validActionIds = GestureMappingManager.Action.values().map { it.id }.toSet()
+
             // Import mappings
             root.optJSONObject("mappings")?.let { mappings ->
                 val mappingPrefs = context.getSharedPreferences(PREFS_MAPPINGS, Context.MODE_PRIVATE)
@@ -113,7 +117,11 @@ object ConfigManager {
                     val keys = gestures.keys()
                     while (keys.hasNext()) {
                         val key = keys.next()
-                        editor.putString("mapping_$key", gestures.getString(key))
+                        // 校验：key 必须是合法的手势枚举名，value 必须是合法的动作 id
+                        if (key !in validGestureNames) continue
+                        val value = gestures.optString(key, "")
+                        if (value !in validActionIds) continue
+                        editor.putString("mapping_$key", value)
                         gestureCount++
                     }
                 }
@@ -122,6 +130,8 @@ object ConfigManager {
                     val keys = params.keys()
                     while (keys.hasNext()) {
                         val key = keys.next()
+                        // 校验：param 的 key 必须是合法的手势枚举名
+                        if (key !in validGestureNames) continue
                         editor.putString("param_$key", params.getString(key))
                     }
                 }
@@ -130,6 +140,8 @@ object ConfigManager {
                     val keys = labels.keys()
                     while (keys.hasNext()) {
                         val key = keys.next()
+                        // 校验：label 的 key 必须是合法的动作 id
+                        if (key !in validActionIds) continue
                         editor.putString("label_$key", labels.getString(key))
                     }
                 }
@@ -150,6 +162,8 @@ object ConfigManager {
                 val keys = settings.keys()
                 while (keys.hasNext()) {
                     val key = keys.next()
+                    // 校验：只允许写入白名单内的可导出设置，防止注入任意 key
+                    if (key !in EXPORTABLE_SETTINGS) continue
                     when (val value = settings.get(key)) {
                         is Boolean -> editor.putBoolean(key, value)
                         is Int -> editor.putInt(key, value)

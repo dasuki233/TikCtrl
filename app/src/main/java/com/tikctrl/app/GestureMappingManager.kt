@@ -116,7 +116,7 @@ object GestureMappingManager {
             GestureClassifier.Gesture.SPIDER_MAN_SHOOTER to Action.MARK, // 关注  🤟
 //            GestureClassifier.Gesture.SPIDER_SHOOTER_NO_THUMB to Action., // 取消关注 🤘
             GestureClassifier.Gesture.OK to Action.USER_AVATAR, // 查看主页  [OK]
-            GestureClassifier.Gesture.THUMB to Action.BACKK, // 查看主页  [OK]
+            GestureClassifier.Gesture.THUMB to Action.BACKK, // 返回
             GestureClassifier.Gesture.Aki_FOX_DEVIL to Action.DOUBLE_SPEED, //  2倍速  大拇指捏住中指和无名指，其他伸直
             GestureClassifier.Gesture.SIXSIXSIX to Action.NORMAL_SPEED //  1倍速  🤙
         )

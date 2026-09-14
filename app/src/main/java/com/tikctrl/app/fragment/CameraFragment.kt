@@ -40,6 +40,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.navigation.Navigation
+import com.tikctrl.app.BuildConfig
 import com.tikctrl.app.GestureClassifier
 import com.tikctrl.app.GestureMappingManager
 import com.tikctrl.app.HandGestureService
@@ -502,7 +503,7 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
             }
             
             if (mode != GestureMappingManager.SingleHandMode.BOTH && selectedHandIndex == null) {
-                Log.d(TAG, "Skipping frame - no matching hand for single hand mode: $mode")
+                if (BuildConfig.DEBUG) Log.d(TAG, "Skipping frame - no matching hand for single hand mode: $mode")
                 return
             }
             
@@ -512,7 +513,7 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
                 classifier.classify(result)
             }
             
-            Log.d(TAG, "Classified gesture (UI path): $gesture")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Classified gesture (UI path): $gesture")
 
             // 更新 UI 显示当前手势
             activity?.runOnUiThread {
@@ -525,20 +526,22 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
             // 手势执行由 HandGestureService 负责
 
             // 打印指尖坐标，方便调试
-            try {
-                val landmarks = resultBundle.results.first().landmarks().firstOrNull()
-                if (landmarks != null) {
-                    val tips = listOf(4, 8, 12, 16, 20).map { i ->
-                        "#${i}:(x=${landmarks[i].x()},y=${landmarks[i].y()})"
+            if (BuildConfig.DEBUG) {
+                try {
+                    val landmarks = resultBundle.results.first().landmarks().firstOrNull()
+                    if (landmarks != null) {
+                        val tips = listOf(4, 8, 12, 16, 20).map { i ->
+                            "#${i}:(x=${landmarks[i].x()},y=${landmarks[i].y()})"
+                        }
+                        Log.d(TAG, "Fingertips: ${tips.joinToString(",")}")
                     }
-                    Log.d(TAG, "Fingertips: ${tips.joinToString(",")}")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to log fingertips: ${e.message}")
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to log fingertips: ${e.message}")
             }
 
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to classify/broadcast from UI path: ${e.message}")
+            if (BuildConfig.DEBUG) Log.w(TAG, "Failed to classify/broadcast from UI path: ${e.message}")
         }
     }
 

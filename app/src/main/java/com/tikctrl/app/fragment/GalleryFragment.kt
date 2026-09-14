@@ -256,11 +256,10 @@ class GalleryFragment : Fragment() {
     }
 
     private fun recreateActivity() {
-        val activity = activity ?: return
         val intent = Intent(requireContext(), MainActivity::class.java)
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
         startActivity(intent)
-        activity.finish()
+        requireActivity().finish()
     }
 
     private fun bindSingleHandMode(view: View) {

@@ -51,6 +51,9 @@ class HandLandmarkerHelper(
     // For this example this needs to be a var so it can be reset on changes.
     // If the Hand Landmarker will not change, a lazy val would be preferable.
     private var handLandmarker: HandLandmarker? = null
+    // 防止 bitmap 转换失败时每帧刷屏，只报一次
+    @Volatile
+    private var hasLoggedBitmapConvertError = false
 
     init {
         setupHandLandmarker()
@@ -162,7 +165,10 @@ class HandLandmarkerHelper(
         // Convert ImageProxy to Bitmap safely for common formats (YUV_420_888 or single-plane RGBA)
         val bitmap = imageProxyToBitmap(imageProxy)
         if (bitmap == null) {
-            Log.w(TAG, "Could not convert ImageProxy to Bitmap (unsupported format)")
+            if (!hasLoggedBitmapConvertError) {
+                hasLoggedBitmapConvertError = true
+                Log.w(TAG, "Could not convert ImageProxy to Bitmap (unsupported format)")
+            }
             imageProxy.close()
             return
         }

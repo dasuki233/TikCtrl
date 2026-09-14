@@ -81,6 +81,7 @@
     <string name="dialog_reset_done">All gestures have been reset</string>
     <string name="confirm">Confirm</string>
     <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
 
     <!-- Gesture Mapping -->
     <string name="mapping_title">Gesture Mapping Assistant</string>
@@ -103,9 +104,9 @@
     <!-- Gesture names (English) -->
     <string name="gesture_none">No gesture detected</string>
     <string name="gesture_middle_finger">FUCK</string>
-    <string name="gesture_pinky_finger">PINKY_FINGER</string>
-    <string name="gesture_index_finger">INDEX_FINGER</string>
-    <string name="gesture_peace_v">Peace</string>
+    <string name="gesture_pinky_finger">Pinky</string>
+    <string name="gesture_index_finger">Point</string>
+    <string name="gesture_peace_v">Peace V</string>
     <string name="gesture_index_middle_ring">Three Fingers</string>
     <string name="gesture_index_middle_ring_pinky">Four Fingers</string>
     <string name="gesture_spider_man_shooter">Rock</string>
@@ -176,6 +177,35 @@
     <!-- Permission request messages -->
     <string name="permission_camera_required">Camera permission is required to start the service</string>
     <string name="permission_overlay_required">Overlay permission not granted</string>
+    <string name="permission_granted">Permission request granted</string>
+    <string name="permission_denied">Permission request denied</string>
+
+    <!-- Permission dialogs -->
+    <string name="dialog_accessibility_title">Accessibility Service Required</string>
+    <string name="dialog_accessibility_message">To trigger system actions via gestures, please enable the app\'s accessibility service in Settings.</string>
+    <string name="dialog_camera_title">Camera Permission Required</string>
+    <string name="dialog_camera_message">The app needs camera permission to detect gestures. Please allow camera permission to continue.</string>
+    <string name="dialog_overlay_title">Overlay Permission Required</string>
+    <string name="dialog_overlay_message">The detection result needs to display a floating window over other apps. Please allow the \"Display over other apps\" permission.</string>
+    <string name="dialog_camera_denied_title">Camera Permission Denied</string>
+    <string name="dialog_camera_denied_message">You have denied camera permission and selected \"Don\'t ask again\". Please go to app settings to manually enable camera permission.</string>
+    <string name="action_go_settings">Go to Settings</string>
+    <string name="action_allow">Allow</string>
+    <string name="action_retry">Retry</string>
+
+    <!-- Toast messages -->
+    <string name="toast_no_main_activity">Unable to get main interface</string>
+    <string name="toast_toggle_too_fast">Too many operations, please try again later</string>
+    <string name="toast_floating_opened">Floating window opened</string>
+    <string name="toast_floating_closed">Floating window closed</string>
+    <string name="toast_overlay_required">Please grant overlay permission first</string>
+    <string name="toast_camera_denied">Camera permission denied</string>
+
+    <!-- Floating window status -->
+    <string name="gesture_recognized_status">Recognized: %1$s</string>
+
+    <!-- Share targets hint (optional input) -->
+    <string name="hint_share_targets_optional">Share targets (optional), separated by commas</string>
 
     <!-- Placeholders -->
     <string name="tv_gallery_placeholder">Tap + to add an image or video.</string>

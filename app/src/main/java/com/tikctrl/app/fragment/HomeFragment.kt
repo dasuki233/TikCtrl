@@ -68,7 +68,7 @@ class HomeFragment : Fragment() {
 
                 val activity = activity as? MainActivity
                 if (activity == null) {
-                    showToast("无法获取主界面")
+                    showToast(getString(R.string.toast_no_main_activity))
                     // 回滚开关状态
                     isUpdatingSwitch = true
                     serviceSwitch.isChecked = !checked
@@ -82,7 +82,7 @@ class HomeFragment : Fragment() {
                     isUpdatingSwitch = true
                     serviceSwitch.isChecked = !checked
                     isUpdatingSwitch = false
-                    showToast("操作过于频繁，请稍后再试")
+                    showToast(getString(R.string.toast_toggle_too_fast))
                     return@setOnCheckedChangeListener
                 }
                 lastToggleTimeMs = now
@@ -94,7 +94,7 @@ class HomeFragment : Fragment() {
                     if (hasCameraPermission && hasOverlayPermission) {
                         activity.startHandGestureService()
                         if (isServiceRunning(HandGestureService::class.java)) {
-                            showToast("悬浮窗已开启")
+                            showToast(getString(R.string.toast_floating_opened))
                         } else {
                             isUpdatingSwitch = true
                             serviceSwitch.isChecked = false
@@ -105,17 +105,17 @@ class HomeFragment : Fragment() {
                         serviceSwitch.isChecked = false
                         isUpdatingSwitch = false
                         if (!hasCameraPermission) {
-                            showToast("请先授予相机权限")
+                            showToast(getString(R.string.permission_camera_required))
                             requestPermissions(arrayOf(android.Manifest.permission.CAMERA), 1001)
                         } else if (!hasOverlayPermission) {
-                            showToast("请先授予悬浮窗权限")
+                            showToast(getString(R.string.toast_overlay_required))
                             val intent = android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${requireContext().packageName}"))
                             startActivity(intent)
                         }
                     }
                 } else {
                     activity.stopHandGestureService()
-                    showToast("悬浮窗已关闭")
+                    showToast(getString(R.string.toast_floating_closed))
                 }
             }
         }
@@ -244,7 +244,7 @@ class HomeFragment : Fragment() {
 
         AlertDialog.Builder(requireContext())
             .setView(dialogView)
-            .setPositiveButton("OK", null)
+            .setPositiveButton(getString(R.string.ok), null)
             .create()
             .show()
     }
@@ -300,7 +300,7 @@ class HomeFragment : Fragment() {
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
                 setMargins(dp(12), 0, 0, 0)
             }
-            tag = "actionText"
+            tag = "actionText" // 用于后续更新
         })
 
         // Spinner 下拉框（闭合只显示箭头，不显示文字）
@@ -327,7 +327,7 @@ class HomeFragment : Fragment() {
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply { setMargins(dp(18), dp(4), dp(18), 0) }
-            hint = "分享目标（可选），用逗号隔开"
+            hint = getString(R.string.hint_share_targets_optional)
             textSize = 13f
             setBackgroundColor(android.graphics.Color.TRANSPARENT)
             visibility = if (action == GestureMappingManager.Action.SHARE) android.view.View.VISIBLE else android.view.View.GONE
@@ -392,12 +392,12 @@ class HomeFragment : Fragment() {
                     isUpdatingSwitch = true
                     view?.findViewById<SwitchCompat>(R.id.switch_visual_feedback)?.isChecked = true
                     isUpdatingSwitch = false
-                    showToast("悬浮窗已开启")
+                    showToast(getString(R.string.toast_floating_opened))
                 } else {
-                    showToast("请先授予悬浮窗权限")
+                    showToast(getString(R.string.toast_overlay_required))
                 }
             } else {
-                showToast("相机权限被拒绝")
+                showToast(getString(R.string.toast_camera_denied))
                 view?.findViewById<SwitchCompat>(R.id.switch_visual_feedback)?.isChecked = false
             }
         }

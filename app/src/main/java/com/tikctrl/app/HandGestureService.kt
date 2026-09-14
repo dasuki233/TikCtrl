@@ -397,7 +397,7 @@ class HandGestureService : LifecycleService() {
 
                 val mpImage = imageProxy.toMpImage()
                 if (mpImage == null) {
-                    Log.w(TAG, "ImageProxy -> MPImage conversion returned null")
+                    if (BuildConfig.DEBUG) Log.w(TAG, "ImageProxy -> MPImage conversion returned null")
                     imageProxy.close()
                     return@setAnalyzer
                 }
@@ -910,7 +910,7 @@ class HandGestureService : LifecycleService() {
             // Default: classifier can pick first available
             gestureClassifier.classify(result)
         }
-        Log.d(TAG, "Classified gesture: $gesture")  // 调试日志
+        if (BuildConfig.DEBUG) Log.d(TAG, "Classified gesture: $gesture")  // 调试日志
 
         // If no gesture (NONE), reset stability counters
         if (gesture == GestureClassifier.Gesture.NONE) {
@@ -928,19 +928,19 @@ class HandGestureService : LifecycleService() {
         }
 
         if (consecutiveDetections < requiredConsecutiveDetections) {
-            Log.d(TAG, "Gesture $gesture seen $consecutiveDetections times, waiting for $requiredConsecutiveDetections")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Gesture $gesture seen $consecutiveDetections times, waiting for $requiredConsecutiveDetections")
             return
         }
 
         // Cooldown: avoid repeating the same gesture too frequently
         val now = System.currentTimeMillis()
         if (lastSentGesture == gesture && now - lastSentTimeMs < gestureCooldownMs) {
-            Log.d(TAG, "Gesture $gesture ignored due to cooldown (elapsed=${now - lastSentTimeMs}ms)")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Gesture $gesture ignored due to cooldown (elapsed=${now - lastSentTimeMs}ms)")
             return
         }
 
-        updateGestureStatus("已识别: ${gesture.name}")
-        Log.i(TAG, "Broadcasting gesture: ${gesture.name}")
+        updateGestureStatus(getString(R.string.gesture_recognized_status, gesture.name))
+        if (BuildConfig.DEBUG) Log.i(TAG, "Broadcasting gesture: ${gesture.name}")
         val intent = Intent(ACTION_GESTURE)
         intent.putExtra(EXTRA_GESTURE, gesture.name)
         intent.setPackage(packageName)

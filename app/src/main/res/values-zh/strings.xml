@@ -81,6 +81,7 @@
     <string name="dialog_reset_done">所有手势已重置</string>
     <string name="confirm">确定</string>
     <string name="cancel">取消</string>
+    <string name="ok">确定</string>
 
     <!-- Gesture Mapping -->
     <string name="mapping_title">手势映射助手</string>
@@ -176,6 +177,35 @@
     <!-- Permission request messages -->
     <string name="permission_camera_required">请先授予相机权限</string>
     <string name="permission_overlay_required">悬浮窗权限未开启</string>
+    <string name="permission_granted">权限请求已通过</string>
+    <string name="permission_denied">权限请求被拒绝</string>
+
+    <!-- Permission dialogs -->
+    <string name="dialog_accessibility_title">需要开启无障碍服务</string>
+    <string name="dialog_accessibility_message">为了让手势触发系统操作，请在设置中启用应用的无障碍服务。</string>
+    <string name="dialog_camera_title">需要相机权限</string>
+    <string name="dialog_camera_message">应用需要相机权限来检测手势。请允许相机权限以继续。</string>
+    <string name="dialog_overlay_title">需要悬浮窗权限</string>
+    <string name="dialog_overlay_message">检测结果需要在其他应用上方显示悬浮窗，请允许“在其他应用上显示”权限。</string>
+    <string name="dialog_camera_denied_title">相机权限被拒绝</string>
+    <string name="dialog_camera_denied_message">您已拒绝相机权限且选择不再询问。请前往应用设置手动开启相机权限。</string>
+    <string name="action_go_settings">去设置</string>
+    <string name="action_allow">允许</string>
+    <string name="action_retry">重试</string>
+
+    <!-- Toast messages -->
+    <string name="toast_no_main_activity">无法获取主界面</string>
+    <string name="toast_toggle_too_fast">操作过于频繁，请稍后再试</string>
+    <string name="toast_floating_opened">悬浮窗已开启</string>
+    <string name="toast_floating_closed">悬浮窗已关闭</string>
+    <string name="toast_overlay_required">请先授予悬浮窗权限</string>
+    <string name="toast_camera_denied">相机权限被拒绝</string>
+
+    <!-- Floating window status -->
+    <string name="gesture_recognized_status">已识别: %1$s</string>
+
+    <!-- Share targets hint (optional input) -->
+    <string name="hint_share_targets_optional">分享目标（可选），用逗号隔开</string>
 
     <!-- Placeholders -->
     <string name="tv_gallery_placeholder">点击 + 添加图片或视频。</string>
