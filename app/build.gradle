@@ -37,7 +37,7 @@ android {
         minSdk 24
         targetSdk 36
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -73,6 +73,13 @@ android {
     buildFeatures {
         viewBinding true
         buildConfig true
+    }
+
+    // 输出 APK 自动命名为 TikCtrl-<versionName>-<buildType>.apk
+    applicationVariants.configureEach { variant ->
+        variant.outputs.configureEach {
+            outputFileName = "TikCtrl-${variant.versionName}-${variant.buildType.name}.apk"
+        }
     }
 }
 
