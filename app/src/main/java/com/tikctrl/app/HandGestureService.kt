@@ -138,8 +138,13 @@ class HandGestureService : LifecycleService() {
         Log.d(TAG, "HandGestureService onCreate() called")
         serviceRunning.postValue(true)
         cameraExecutor = Executors.newSingleThreadExecutor()
-        prefs = getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE).also {
-            it.registerOnSharedPreferenceChangeListener(prefsListener)
+        prefs = getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE).also { sp ->
+            // 一次性迁移必须在注册 listener 之前执行，否则 apply() 会同步触发
+            // prefsListener -> setupHandLandmarker() 重入，导致主线程嵌套加载模型
+            if (sp.getInt("delegate_migrated_v1", 0) == 0) {
+                sp.edit().putInt("inference_delegate", 0).putInt("delegate_migrated_v1", 1).apply()
+            }
+            sp.registerOnSharedPreferenceChangeListener(prefsListener)
         }
         // 应用语言设置，确保 Service 的 getString() 返回正确的语言
         applyLanguage()
@@ -249,11 +254,6 @@ class HandGestureService : LifecycleService() {
         try {
             // 初始化手势统计
             GestureStatistics.init(this)
-            // 一次性迁移：默认使用 CPU 推理以降低发热（仅本次升级重置，后续尊重用户选择）
-            val sp = prefs
-            if (sp != null && sp.getInt("delegate_migrated_v1", 0) == 0) {
-                sp.edit().putInt("inference_delegate", 0).putInt("delegate_migrated_v1", 1).apply()
-            }
             // 固定检测置信度阈值
             val minConfidence = 0.7f
 

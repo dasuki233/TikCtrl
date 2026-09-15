@@ -159,19 +159,20 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
 
         // Wait for the views to be properly laid out
         fragmentCameraBinding.viewFinder.post {
-            // Set up the camera and its use cases
-            setUpCamera()
+            // Fragment may have been detached before this runnable executes
+            if (isAdded) setUpCamera()
         }
 
         // Create the HandLandmarkerHelper that will handle the inference
         backgroundExecutor.execute {
-            val prefs = requireContext().getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
+            val ctx = context ?: return@execute
+            val prefs = ctx.getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
             val useGPU = prefs.getInt("inference_delegate", 0) == 1
             val powerSaving = prefs.getBoolean("power_saving_mode", false)
             val delegate = if (useGPU && !powerSaving) HandLandmarkerHelper.DELEGATE_GPU else HandLandmarkerHelper.DELEGATE_CPU
 
             handLandmarkerHelper = HandLandmarkerHelper(
-                context = requireContext(),
+                context = ctx,
                 runningMode = RunningMode.LIVE_STREAM,
                 minHandDetectionConfidence = viewModel.currentMinHandDetectionConfidence,
                 minHandTrackingConfidence = viewModel.currentMinHandTrackingConfidence,
@@ -328,24 +329,28 @@ class CameraFragment : Fragment(), HandLandmarkerHelper.LandmarkerListener {
 
     // Initialize CameraX, and prepare to bind the camera use cases
     private fun setUpCamera() {
+        if (!isAdded) return
         // 读取设置
-        val prefs = requireContext().getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
+        val ctx = requireContext()
+        val prefs = ctx.getSharedPreferences("gesture_prefs", Context.MODE_PRIVATE)
         val useFrontCamera = prefs.getBoolean("front_camera", true)
         cameraFacing = if (useFrontCamera) CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
-        
+
         val cameraProviderFuture =
-            ProcessCameraProvider.getInstance(requireContext())
+            ProcessCameraProvider.getInstance(ctx)
         cameraProviderFuture.addListener(
             {
+                // Future returns asynchronously; fragment may be detached by then
+                if (!isAdded) return@addListener
                 // CameraProvider
                 cameraProvider = cameraProviderFuture.get()
 
                 // Build and bind the camera use cases
                 bindCameraUseCases()
-                
+
                 // 应用镜像设置
                 applyPreviewMirror()
-            }, ContextCompat.getMainExecutor(requireContext())
+            }, ContextCompat.getMainExecutor(ctx)
         )
     }
 

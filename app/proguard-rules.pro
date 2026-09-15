@@ -9,6 +9,28 @@
 -keepclasseswithmembernames class com.google.mediapipe.** { *; }
 -dontwarn com.google.mediapipe.**
 
+# MediaPipe uses stack inspection to find caller class during Graph.<clinit>
+# R8 method inlining breaks this — disable optimization globally
+-dontoptimize
+
+# Keep Graph class and its static initializer from being stripped/relocated
+-keep class com.google.mediapipe.framework.Graph { *; }
+-keep class com.google.mediapipe.framework.Graph$* { *; }
+-keep class com.google.mediapipe.tasks.core.TaskRunner { *; }
+
+# Keep stack trace attributes (SourceFile, LineNumberTable) for crash debugging
+-keepattributes SourceFile,LineNumberTable
+
+# Protobuf (protobuf-javalite) — MediaPipe loads models via protobuf reflection;
+# R8 renaming fields (typeUrl_ -> a/b/c) breaks model loading
+-keep class com.google.protobuf.** { *; }
+-dontwarn com.google.protobuf.**
+-keep class * extends com.google.protobuf.GeneratedMessageLite { *; }
+-keepclassmembers class * extends com.google.protobuf.GeneratedMessageLite {
+    <fields>;
+    <methods>;
+}
+
 # CameraX - keep key classes
 -keep class androidx.camera.** { *; }
 -keepclassmembers class androidx.camera.** { *; }
