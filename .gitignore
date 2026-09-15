@@ -14,3 +14,17 @@
 .cxx
 local.properties
 *.wav
+
+# 签名密钥
+*.keystore
+*.jks
+keystore.properties
+
+# Firebase / Google 服务配置
+google-services.json
+
+# 密钥与凭证
+*.pem
+*.p12
+*.key
+secrets.properties

@@ -1234,7 +1234,7 @@ class GestureActionService : AccessibilityService() {
                 findAndClickByContentDescPartial("关注")
             }
 
-//            // 八、取消关注  找不到元素，现不做了
+//            // 八、取消关注  // TODO 找不到元素，以后再做吧
 //            GestureMappingManager.Action.UNFOLLOW -> {
 ////                Log.i("GestureActionService", "Action UNFOLLOW: try find '取消关注' and click")
 //                // 先滑动到主页，先不做了
