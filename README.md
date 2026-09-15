@@ -5,6 +5,7 @@
 ![API](https://img.shields.io/badge/API-24%2B-brightgreen.svg)
 ![CameraX](https://img.shields.io/badge/CameraX-1.5.0-blue.svg)
 ![MediaPipe](https://img.shields.io/badge/MediaPipe-Hand%20Landmarker-ff69b4.svg)
+![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)
 
 TikCtrl 是一款基于 MediaPipe Hand Landmarker 的 Android 手势控制应用。它通过摄像头实时检测手部 21 个关键点，识别手势并自动执行对应操作（如抖音的点赞、滑动切换、倍速等），让刷短视频无需触屏。
 
@@ -117,3 +118,16 @@ GPU 初始化失败时会自动回退 CPU。也可在设置中手动切换推理
 ## 致谢
 
 本项目基于 [MediaPipe Hand Landmarker（Android 示例）](https://github.com/googlesamples/mediapipe/tree/main/examples/hand_landmarker/android) 构建，感谢 Google MediaPipe 团队与开源社区的贡献。
+
+本项目使用了以下开源组件（均为 Apache License 2.0）：
+
+- [MediaPipe](https://github.com/google-ai-edge/mediapipe) — Google
+- [CameraX](https://developer.android.com/training/camerax) — Android Open Source Project
+- [Material Components for Android](https://github.com/material-components/material-components-android) — Google
+- [AndroidX](https://developer.android.com/jetpack/androidx) — Android Open Source Project
+
+## License
+
+Copyright © 2026 TikCtrl Contributors
+
+本项目基于 [Apache License 2.0](LICENSE) 开源。你可以自由地使用、修改和分发本项目，但需保留版权声明与许可证声明；本项目按"原样"提供，不提供任何明示或暗示的担保。
